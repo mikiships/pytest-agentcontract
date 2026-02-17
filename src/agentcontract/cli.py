@@ -47,17 +47,21 @@ def _cmd_info(path: Path) -> int:
         print(f"Error: {path} not found", file=sys.stderr)
         return 1
 
-    run = load_run(path)
-    print(f"Scenario:    {run.metadata.scenario}")
-    print(f"Run ID:      {run.run_id}")
-    print(f"Recorded:    {run.recorded_at}")
-    print(f"Model:       {run.model.provider}/{run.model.model}")
-    print(f"Turns:       {run.summary.total_turns}")
-    print(f"Tool calls:  {run.summary.total_tool_calls}")
-    print(f"Duration:    {run.summary.total_duration_ms:.0f}ms")
-    print(f"Tokens:      {run.summary.total_tokens.total}")
-    print(f"Est. cost:   ${run.summary.estimated_cost_usd:.4f}")
-    return 0
+    try:
+        run = load_run(path)
+        print(f"Scenario:    {run.metadata.scenario}")
+        print(f"Run ID:      {run.run_id}")
+        print(f"Recorded:    {run.recorded_at}")
+        print(f"Model:       {run.model.provider}/{run.model.model}")
+        print(f"Turns:       {run.summary.total_turns}")
+        print(f"Tool calls:  {run.summary.total_tool_calls}")
+        print(f"Duration:    {run.summary.total_duration_ms:.0f}ms")
+        print(f"Tokens:      {run.summary.total_tokens.total}")
+        print(f"Est. cost:   ${run.summary.estimated_cost_usd:.4f}")
+        return 0
+    except Exception as e:
+        print(f"Error: failed to read cassette '{path}': {e}", file=sys.stderr)
+        return 1
 
 
 def _cmd_validate(path: Path) -> int:

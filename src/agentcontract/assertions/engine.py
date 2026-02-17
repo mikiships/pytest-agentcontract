@@ -155,6 +155,12 @@ class AssertionEngine:
         return calls
 
     def _check_exact(self, run: AgentRun, spec: AssertionSpec) -> AssertionResult:
+        if spec.value is None:
+            return AssertionResult(
+                assertion=spec,
+                passed=False,
+                message="'exact' requires a non-null 'value'",
+            )
         actual = self._resolve_target(run, spec.target)
         passed = actual == spec.value
         return AssertionResult(
@@ -230,12 +236,18 @@ class AssertionEngine:
                 passed=False,
                 message="'called_with' requires expected arguments in 'schema'",
             )
+        if not isinstance(spec.schema, dict):
+            return AssertionResult(
+                assertion=spec,
+                passed=False,
+                message="'called_with' expects a dict in 'schema'",
+            )
 
         expected_args = spec.schema  # reuse schema field for expected args
         calls = self._get_all_tool_calls(run)
 
         for name, args, _ in calls:
-            if name == func_name:
+            if name == func_name and isinstance(args, dict):
                 # Check if expected args are a subset of actual args
                 match = all(args.get(k) == v for k, v in expected_args.items())
                 if match:
@@ -252,7 +264,21 @@ class AssertionEngine:
         func_name = (
             spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
         )
-        expected_count = int(spec.value) if spec.value else 0
+        if spec.value is None:
+            return AssertionResult(
+                assertion=spec,
+                passed=False,
+                message="'called_count' requires an integer 'value'",
+            )
+        try:
+            expected_count = int(spec.value)
+        except (TypeError, ValueError):
+            return AssertionResult(
+                assertion=spec,
+                passed=False,
+                message="'called_count' expects an integer 'value'",
+            )
+
         calls = self._get_all_tool_calls(run)
         actual_count = sum(1 for name, _, _ in calls if name == func_name)
 
@@ -276,11 +302,18 @@ class AssertionEngine:
         if checker is None:
             return AssertionResult(
                 assertion=AssertionSpec(type=f"policy:{policy.name}"),
-                passed=True,
-                message=f"Policy type '{policy.type}' not implemented, skipping",
+                passed=False,
+                message=f"Unknown policy type: {policy.type}",
             )
 
-        return checker(run, policy)
+        try:
+            return checker(run, policy)
+        except Exception as e:
+            return AssertionResult(
+                assertion=AssertionSpec(type=f"policy:{policy.name}"),
+                passed=False,
+                message=f"Policy error: {e}",
+            )
 
     def _policy_tool_allowlist(self, run: AgentRun, policy: PolicySpec) -> AssertionResult:
         """Only allowed tools may be called."""

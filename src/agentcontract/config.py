@@ -123,37 +123,39 @@ class AgentContractConfig:
         ]
 
         return cls(
-            version=str(raw.get("version", "1")),
+            version=_coerce_str(raw.get("version"), "1"),
             scenario_include=_coerce_list(
                 scenarios.get("include"), ["tests/scenarios/**/*.agentrun.json"]
             ),
             scenario_exclude=_coerce_list(scenarios.get("exclude"), []),
             replay=ReplayConfig(
-                model=replay_raw.get("model", ""),
-                seed=replay_raw.get("seed", 42),
-                stub_tools=replay_raw.get("stub_tools", True),
-                concurrency=replay_raw.get("concurrency", 5),
+                model=_coerce_str(replay_raw.get("model"), ""),
+                seed=_coerce_optional_int(replay_raw.get("seed"), 42),
+                stub_tools=_coerce_bool(replay_raw.get("stub_tools"), True),
+                concurrency=_coerce_int(replay_raw.get("concurrency"), 5),
             ),
             default_assertions=default_assertions,
             overrides=overrides,
             policies=policies,
-            suite_pass_rate=thresholds.get("suite_pass_rate", 1.0),
+            suite_pass_rate=_coerce_float(thresholds.get("suite_pass_rate"), 1.0),
             per_scenario_budget=BudgetConfig(
-                max_cost_usd=per_scenario.get("max_cost_usd", 0.05),
-                max_latency_ms=per_scenario.get("max_latency_ms", 10000),
-                max_turns=per_scenario.get("max_turns", 15),
+                max_cost_usd=_coerce_float(per_scenario.get("max_cost_usd"), 0.05),
+                max_latency_ms=_coerce_float(per_scenario.get("max_latency_ms"), 10000),
+                max_turns=_coerce_int(per_scenario.get("max_turns"), 15),
             ),
-            suite_budget_usd=suite.get("max_cost_usd", 2.0),
-            baseline_branch=baseline.get("branch", "main"),
-            show_deltas=baseline.get("show_deltas", True),
-            github_comment=reporting.get("github_comment", True),
-            artifact_path=reporting.get("artifact_path", "agentci-results/"),
+            suite_budget_usd=_coerce_float(suite.get("max_cost_usd"), 2.0),
+            baseline_branch=_coerce_str(baseline.get("branch"), "main"),
+            show_deltas=_coerce_bool(baseline.get("show_deltas"), True),
+            github_comment=_coerce_bool(reporting.get("github_comment"), True),
+            artifact_path=_coerce_str(reporting.get("artifact_path"), "agentci-results/"),
         )
 
     @classmethod
     def discover(cls, start: Path | None = None) -> AgentContractConfig:
         """Walk up from start (or cwd) looking for agentcontract.yml."""
         search = start or Path.cwd()
+        if search.is_file():
+            search = search.parent
         for directory in [search, *search.parents]:
             candidate = directory / "agentcontract.yml"
             if candidate.exists():
@@ -180,8 +182,8 @@ def _parse_policy(raw: dict[str, Any]) -> PolicySpec:
         name=raw["name"],
         type=raw["type"],
         target=raw.get("target", ""),
-        tools=raw.get("tools", []),
-        block=raw.get("block", []),
+        tools=[str(item) for item in _coerce_list(raw.get("tools"), []) if item is not None],
+        block=[str(item) for item in _coerce_list(raw.get("block"), []) if item is not None],
     )
 
 
@@ -197,3 +199,57 @@ def _coerce_list(value: Any, default: list[Any]) -> list[Any]:
     if isinstance(value, list):
         return value
     return list(default)
+
+
+def _coerce_str(value: Any, default: str = "") -> str:
+    """Normalize scalar fields to strings while preserving defaults for nulls."""
+    if value is None:
+        return default
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def _coerce_bool(value: Any, default: bool) -> bool:
+    """Normalize booleans from YAML-compatible scalar values."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "off"}:
+            return False
+    return default
+
+
+def _coerce_int(value: Any, default: int) -> int:
+    """Normalize numeric config fields that should be integers."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_optional_int(value: Any, default: int | None = None) -> int | None:
+    """Normalize optional integer config fields."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_float(value: Any, default: float) -> float:
+    """Normalize numeric config fields that should be floats."""
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default

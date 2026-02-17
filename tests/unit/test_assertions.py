@@ -90,6 +90,15 @@ class TestExact:
         )
         assert result.passed
 
+    def test_fail_when_value_missing(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            assertions=[AssertionSpec(type="exact", target="final_response")],
+        )
+        assert not result.passed
+        assert result.results[0].message != ""
+
 
 class TestRegex:
     def test_pass(self):
@@ -180,6 +189,63 @@ class TestCalledWith:
         )
         assert not result.passed
 
+    def test_handles_non_dict_recorded_arguments(self):
+        run = AgentRun(
+            metadata=RunMetadata(scenario="called-with-non-dict-args"),
+            turns=[
+                Turn(
+                    index=0,
+                    role=TurnRole.ASSISTANT,
+                    tool_calls=[
+                        ToolCall(id="tc1", function="lookup_order", arguments=None),  # type: ignore[arg-type]
+                    ],
+                )
+            ],
+        )
+        engine = AssertionEngine()
+        result = engine.check(
+            run,
+            assertions=[
+                AssertionSpec(
+                    type="called_with",
+                    target="tool:lookup_order",
+                    schema={"order_id": "123"},
+                )
+            ],
+        )
+        assert not result.passed
+        assert result.results[0].message != ""
+
+
+class TestCalledCount:
+    def test_pass(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            assertions=[AssertionSpec(type="called_count", target="tool:lookup_order", value="1")],
+        )
+        assert result.passed
+
+    def test_fail_when_value_missing(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            assertions=[AssertionSpec(type="called_count", target="tool:lookup_order")],
+        )
+        assert not result.passed
+        assert "requires an integer" in result.results[0].message
+
+    def test_fail_when_value_is_not_integer(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            assertions=[
+                AssertionSpec(type="called_count", target="tool:lookup_order", value="abc")
+            ],
+        )
+        assert not result.passed
+        assert "expects an integer" in result.results[0].message
+
 
 class TestToolAllowlistPolicy:
     def test_pass(self):
@@ -267,3 +333,29 @@ class TestRequiresConfirmationPolicy:
             ],
         )
         assert not result.passed
+
+
+class TestPolicyErrors:
+    def test_unknown_policy_type_fails_closed(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            policies=[PolicySpec(name="unknown", type="not_a_real_policy")],
+        )
+        assert not result.passed
+        assert result.results[0].message == "Unknown policy type: not_a_real_policy"
+
+    def test_policy_errors_are_reported_without_raising(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            policies=[
+                PolicySpec(
+                    name="broken-allowlist",
+                    type="tool_allowlist",
+                    tools=None,  # type: ignore[arg-type]
+                )
+            ],
+        )
+        assert not result.passed
+        assert result.results[0].message.startswith("Policy error:")

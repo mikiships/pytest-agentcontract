@@ -200,3 +200,22 @@ def test_replay_finish_counts_extra_and_missing_tools():
     assert result.extra_tools == 1
     assert result.missing_tools == 1
     assert result.mismatched_tools >= 2
+
+
+def test_replay_finish_handles_non_string_content_on_extra_turn():
+    run = _make_run()
+    engine = ReplayEngine(run)
+
+    actual_turns = [
+        *run.turns,
+        Turn(
+            index=4,
+            role=TurnRole.ASSISTANT,
+            content={"unexpected": "payload"},  # type: ignore[arg-type]
+        ),
+    ]
+
+    result = engine.finish(actual_turns=actual_turns)
+
+    assert not result.ok
+    assert any("Extra turn 4" in err for err in result.errors)

@@ -25,6 +25,26 @@ from agentcontract.types import (
 )
 
 
+def _coerce_optional_float(value: Any) -> float | None:
+    """Normalize optional numeric fields to floats."""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_int(value: Any, default: int = 0) -> int:
+    """Normalize numeric fields to integers."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 class Recorder:
     """Records agent tool calls and LLM interactions into an AgentRun trajectory.
 
@@ -105,35 +125,52 @@ class Recorder:
         completion_tokens: int = 0,
     ) -> Turn:
         """Add a turn to the trajectory."""
-        parsed_tool_calls = []
+        normalized_content = content
+        if normalized_content is not None and not isinstance(normalized_content, str):
+            normalized_content = str(normalized_content)
+
+        parsed_tool_calls: list[ToolCall] = []
         if tool_calls:
             for tc in tool_calls:
+                if not isinstance(tc, dict):
+                    continue
+                raw_arguments = tc.get("arguments")
+                raw_id = tc.get("id")
+                raw_function = tc.get("function")
+                raw_duration_ms = tc.get("duration_ms")
                 parsed_tool_calls.append(
                     ToolCall(
-                        id=tc.get("id", ""),
-                        function=tc["function"],
-                        arguments=tc.get("arguments", {}),
+                        id="" if raw_id is None else str(raw_id),
+                        function="" if raw_function is None else str(raw_function),
+                        arguments=raw_arguments if isinstance(raw_arguments, dict) else {},
                         result=tc.get("result"),
-                        duration_ms=tc.get("duration_ms"),
+                        duration_ms=_coerce_optional_float(raw_duration_ms),
                     )
                 )
             self._total_tool_calls += len(parsed_tool_calls)
 
-        timing = Timing(latency_ms=latency_ms) if latency_ms is not None else None
+        normalized_latency_ms = _coerce_optional_float(latency_ms)
+        timing = (
+            Timing(latency_ms=normalized_latency_ms)
+            if normalized_latency_ms is not None
+            else None
+        )
+        normalized_prompt_tokens = _coerce_int(prompt_tokens, 0)
+        normalized_completion_tokens = _coerce_int(completion_tokens, 0)
         tokens = None
-        if prompt_tokens or completion_tokens:
+        if normalized_prompt_tokens or normalized_completion_tokens:
             tokens = TokenUsage(
-                prompt=prompt_tokens,
-                completion=completion_tokens,
-                total=prompt_tokens + completion_tokens,
+                prompt=normalized_prompt_tokens,
+                completion=normalized_completion_tokens,
+                total=normalized_prompt_tokens + normalized_completion_tokens,
             )
-            self._total_prompt_tokens += prompt_tokens
-            self._total_completion_tokens += completion_tokens
+            self._total_prompt_tokens += normalized_prompt_tokens
+            self._total_completion_tokens += normalized_completion_tokens
 
         turn = Turn(
             index=self._turn_index,
             role=TurnRole(role),
-            content=content,
+            content=normalized_content,
             tool_calls=parsed_tool_calls,
             timing=timing,
             tokens=tokens,

@@ -8,6 +8,16 @@ from typing import Any
 from agentcontract.types import AgentRun, Turn
 
 
+def _preview_content(content: Any, max_chars: int = 50) -> str:
+    """Safely format turn content for replay diff messages."""
+    if content is None:
+        return "(none)"
+    text = content if isinstance(content, str) else str(content)
+    if len(text) > max_chars:
+        return f"{text[:max_chars]}..."
+    return text
+
+
 @dataclass
 class ReplayResult:
     """Result of replaying a trajectory."""
@@ -34,9 +44,10 @@ class ToolStub:
         # Index all tool calls by function name (in recorded order).
         for turn in run.turns:
             for tc in turn.tool_calls:
+                arguments = tc.arguments if isinstance(tc.arguments, dict) else {}
                 if tc.function not in self._tool_calls:
                     self._tool_calls[tc.function] = []
-                self._tool_calls[tc.function].append((tc.arguments, tc.result))
+                self._tool_calls[tc.function].append((arguments, tc.result))
 
     def get_result(self, function: str, arguments: dict[str, Any] | None = None) -> Any:
         """Get the next recorded result for a tool function.
@@ -135,7 +146,7 @@ class ReplayEngine:
                     result.mismatched_tools += extra_call_count
                 result.errors.append(
                     f"Extra turn {i}: role={actual.role.value}, "
-                    f"content={actual.content[:50] if actual.content else '(none)'}..."
+                    f"content={_preview_content(actual.content)}"
                 )
                 continue
 
