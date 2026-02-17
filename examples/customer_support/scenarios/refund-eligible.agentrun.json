@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "bd3fdc7e-5bcc-496d-9db6-6501fd818482",
+  "source": {
+    "recorded_at": "2026-02-17T20:21:47.251735+00:00",
+    "recorder_version": "0.1.0",
+    "sdk": "agentcontract-python"
+  },
+  "model": {
+    "provider": "",
+    "model": "",
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "max_tokens": 4096,
+    "seed": null
+  },
+  "metadata": {
+    "scenario": "refund-eligible",
+    "tags": [],
+    "description": ""
+  },
+  "summary": {
+    "total_turns": 5,
+    "total_duration_ms": 0.8665419882163405,
+    "total_tokens": {
+      "prompt": 0,
+      "completion": 0,
+      "total": 0
+    },
+    "total_tool_calls": 3,
+    "estimated_cost_usd": 0.0
+  },
+  "turns": [
+    {
+      "index": 0,
+      "role": "user",
+      "content": "I'd like a refund for order ORD-123 please"
+    },
+    {
+      "index": 1,
+      "role": "assistant",
+      "content": "Let me look up order ORD-123.",
+      "tool_calls": [
+        {
+          "id": "tc_lookup",
+          "function": "lookup_order",
+          "arguments": {
+            "order_id": "ORD-123"
+          },
+          "result": {
+            "id": "ORD-123",
+            "customer": "alice@example.com",
+            "items": [
+              {
+                "name": "Wireless Headphones",
+                "price": 79.99
+              }
+            ],
+            "total": 79.99,
+            "status": "delivered",
+            "delivered_at": "2026-02-10"
+          },
+          "duration_ms": null
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "role": "assistant",
+      "content": "Checking refund eligibility...",
+      "tool_calls": [
+        {
+          "id": "tc_eligibility",
+          "function": "check_refund_eligibility",
+          "arguments": {
+            "order_id": "ORD-123"
+          },
+          "result": {
+            "eligible": true,
+            "order_id": "ORD-123",
+            "amount": 79.99
+          },
+          "duration_ms": null
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "role": "user",
+      "content": "Yes, please process the refund."
+    },
+    {
+      "index": 4,
+      "role": "assistant",
+      "content": "Your refund of $79.99 has been processed. Refund ID: REF-ORD-123",
+      "tool_calls": [
+        {
+          "id": "tc_refund",
+          "function": "process_refund",
+          "arguments": {
+            "order_id": "ORD-123",
+            "amount": 79.99,
+            "method": "original"
+          },
+          "result": {
+            "success": true,
+            "refund_id": "REF-ORD-123",
+            "amount": 79.99,
+            "method": "original"
+          },
+          "duration_ms": null
+        }
+      ]
+    }
+  ]
+}
