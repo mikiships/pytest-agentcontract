@@ -2,7 +2,7 @@
 
 import pytest
 
-from agentcontract.replay.engine import ReplayEngine, ToolStubExhausted
+from agentcontract.replay.engine import ReplayEngine, ToolStubArgumentsMismatch, ToolStubExhausted
 from agentcontract.types import AgentRun, RunMetadata, ToolCall, Turn, TurnRole
 
 
@@ -77,6 +77,40 @@ def test_tool_stub_has_results():
 
     stub.get_result("lookup_order")
     assert not stub.has_results("lookup_order")
+
+
+def test_tool_stub_validates_arguments_in_recorded_order():
+    run = AgentRun(
+        metadata=RunMetadata(scenario="ordered-args"),
+        turns=[
+            Turn(
+                index=0,
+                role=TurnRole.ASSISTANT,
+                tool_calls=[
+                    ToolCall(
+                        id="tc1",
+                        function="lookup_order",
+                        arguments={"order_id": "123"},
+                        result={"order_id": "123"},
+                    ),
+                    ToolCall(
+                        id="tc2",
+                        function="lookup_order",
+                        arguments={"order_id": "456"},
+                        result={"order_id": "456"},
+                    ),
+                ],
+            )
+        ],
+    )
+    engine = ReplayEngine(run)
+    stub = engine.tool_stub
+
+    with pytest.raises(ToolStubArgumentsMismatch):
+        stub.get_result("lookup_order", {"order_id": "456"})
+
+    # Mismatch should not consume the recorded call.
+    assert stub.get_result("lookup_order", {"order_id": "123"}) == {"order_id": "123"}
 
 
 def test_replay_finish_matching():

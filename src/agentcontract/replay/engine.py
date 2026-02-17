@@ -28,15 +28,15 @@ class ToolStub:
     """Provides recorded tool results during replay."""
 
     def __init__(self, run: AgentRun) -> None:
-        self._tool_results: dict[str, list[Any]] = {}
+        self._tool_calls: dict[str, list[tuple[dict[str, Any], Any]]] = {}
         self._call_counts: dict[str, int] = {}
 
-        # Index all tool calls by function name
+        # Index all tool calls by function name (in recorded order).
         for turn in run.turns:
             for tc in turn.tool_calls:
-                if tc.function not in self._tool_results:
-                    self._tool_results[tc.function] = []
-                self._tool_results[tc.function].append(tc.result)
+                if tc.function not in self._tool_calls:
+                    self._tool_calls[tc.function] = []
+                self._tool_calls[tc.function].append((tc.arguments, tc.result))
 
     def get_result(self, function: str, arguments: dict[str, Any] | None = None) -> Any:
         """Get the next recorded result for a tool function.
@@ -44,27 +44,37 @@ class ToolStub:
         Returns results in order of recording. Raises if no more results available.
         """
         count = self._call_counts.get(function, 0)
-        results = self._tool_results.get(function, [])
+        calls = self._tool_calls.get(function, [])
 
-        if count >= len(results):
+        if count >= len(calls):
             raise ToolStubExhausted(
                 f"No more recorded results for tool '{function}' "
-                f"(called {count + 1} times, only {len(results)} recorded)"
+                f"(called {count + 1} times, only {len(calls)} recorded)"
             )
 
-        result = results[count]
+        expected_arguments, result = calls[count]
+        if arguments is not None and arguments != expected_arguments:
+            raise ToolStubArgumentsMismatch(
+                f"Tool '{function}' call {count + 1} argument mismatch: "
+                f"expected {expected_arguments}, got {arguments}"
+            )
+
         self._call_counts[function] = count + 1
         return result
 
     def has_results(self, function: str) -> bool:
         """Check if there are remaining results for a function."""
         count = self._call_counts.get(function, 0)
-        results = self._tool_results.get(function, [])
-        return count < len(results)
+        calls = self._tool_calls.get(function, [])
+        return count < len(calls)
 
 
 class ToolStubExhausted(Exception):
     """Raised when replay requests a tool call that has no more recorded results."""
+
+
+class ToolStubArgumentsMismatch(Exception):
+    """Raised when replay tool arguments do not match the recorded call order."""
 
 
 class ReplayEngine:
@@ -104,13 +114,13 @@ class ReplayEngine:
 
         if actual_turns is None:
             # Just check stub consumption
-            for func, results in self._tool_stub._tool_results.items():
+            for func, calls in self._tool_stub._tool_calls.items():
                 count = self._tool_stub._call_counts.get(func, 0)
-                remaining = len(results) - count
+                remaining = len(calls) - count
                 if remaining > 0:
                     result.missing_tools += remaining
                     result.errors.append(
-                        f"Tool '{func}' was recorded {len(results)} times "
+                        f"Tool '{func}' was recorded {len(calls)} times "
                         f"but only called {count} times during replay"
                     )
             return result
