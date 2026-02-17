@@ -62,7 +62,9 @@ class AgentContractConfig:
     """Parsed agentcontract.yml configuration."""
 
     version: str = "1"
-    scenario_include: list[str] = field(default_factory=lambda: ["tests/scenarios/**/*.agentrun.json"])
+    scenario_include: list[str] = field(
+        default_factory=lambda: ["tests/scenarios/**/*.agentrun.json"]
+    )
     scenario_exclude: list[str] = field(default_factory=list)
     replay: ReplayConfig = field(default_factory=ReplayConfig)
     default_assertions: list[AssertionSpec] = field(default_factory=list)
@@ -95,9 +97,7 @@ class AgentContractConfig:
         reporting = raw.get("reporting", {})
         baseline = raw.get("baseline", {})
 
-        default_assertions = [
-            _parse_assertion(a) for a in defaults_raw.get("assertions", [])
-        ]
+        default_assertions = [_parse_assertion(a) for a in defaults_raw.get("assertions", [])]
 
         overrides: dict[str, ScenarioOverride] = {}
         for name, override_raw in raw.get("overrides", {}).items():

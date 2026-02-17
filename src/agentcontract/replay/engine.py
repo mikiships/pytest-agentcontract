@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from agentcontract.types import AgentRun, ToolCall, Turn, TurnRole
+from agentcontract.types import AgentRun, Turn
 
 
 @dataclass
@@ -130,22 +130,19 @@ class ReplayEngine:
             # Check role match
             if actual.role != expected.role:
                 result.errors.append(
-                    f"Turn {i}: expected role={expected.role.value}, "
-                    f"got role={actual.role.value}"
+                    f"Turn {i}: expected role={expected.role.value}, got role={actual.role.value}"
                 )
 
             # Check tool call match
             if len(actual.tool_calls) != len(expected.tool_calls):
-                result.mismatched_tools += abs(
-                    len(actual.tool_calls) - len(expected.tool_calls)
-                )
+                result.mismatched_tools += abs(len(actual.tool_calls) - len(expected.tool_calls))
                 result.errors.append(
                     f"Turn {i}: expected {len(expected.tool_calls)} tool calls, "
                     f"got {len(actual.tool_calls)}"
                 )
             else:
                 for j, (act_tc, exp_tc) in enumerate(
-                    zip(actual.tool_calls, expected.tool_calls)
+                    zip(actual.tool_calls, expected.tool_calls, strict=False)
                 ):
                     if act_tc.function != exp_tc.function:
                         result.mismatched_tools += 1
@@ -156,8 +153,7 @@ class ReplayEngine:
                     elif act_tc.arguments != exp_tc.arguments:
                         result.mismatched_tools += 1
                         result.errors.append(
-                            f"Turn {i}, tool {j} ({act_tc.function}): "
-                            f"arguments differ"
+                            f"Turn {i}, tool {j} ({act_tc.function}): arguments differ"
                         )
                     else:
                         result.matched_tools += 1
@@ -166,8 +162,7 @@ class ReplayEngine:
         if len(actual_turns) < len(recorded_turns):
             missing = len(recorded_turns) - len(actual_turns)
             result.errors.append(
-                f"Missing {missing} turns (recorded {len(recorded_turns)}, "
-                f"got {len(actual_turns)})"
+                f"Missing {missing} turns (recorded {len(recorded_turns)}, got {len(actual_turns)})"
             )
 
         return result

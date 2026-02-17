@@ -9,7 +9,7 @@ from typing import Any
 import jsonschema
 
 from agentcontract.config import AssertionSpec, PolicySpec
-from agentcontract.types import AgentRun, Turn, TurnRole
+from agentcontract.types import AgentRun, TurnRole
 
 
 @dataclass
@@ -191,9 +191,7 @@ class AssertionEngine:
     def _check_json_schema(self, run: AgentRun, spec: AssertionSpec) -> AssertionResult:
         actual = self._resolve_target(run, spec.target)
         if actual is None or spec.schema is None:
-            return AssertionResult(
-                assertion=spec, passed=False, message="Target or schema is None"
-            )
+            return AssertionResult(assertion=spec, passed=False, message="Target or schema is None")
         try:
             jsonschema.validate(instance=actual, schema=spec.schema)
             return AssertionResult(assertion=spec, passed=True)
@@ -207,7 +205,9 @@ class AssertionEngine:
     def _check_not_called(self, run: AgentRun, spec: AssertionSpec) -> AssertionResult:
         """Assert a tool was NOT called."""
         # target format: "tool:function_name" or just the function name
-        func_name = spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
+        func_name = (
+            spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
+        )
         calls = self._get_all_tool_calls(run)
         called = any(name == func_name for name, _, _ in calls)
         return AssertionResult(
@@ -218,7 +218,9 @@ class AssertionEngine:
 
     def _check_called_with(self, run: AgentRun, spec: AssertionSpec) -> AssertionResult:
         """Assert a tool was called with specific arguments."""
-        func_name = spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
+        func_name = (
+            spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
+        )
         expected_args = spec.schema or {}  # reuse schema field for expected args
         calls = self._get_all_tool_calls(run)
 
@@ -237,7 +239,9 @@ class AssertionEngine:
 
     def _check_called_count(self, run: AgentRun, spec: AssertionSpec) -> AssertionResult:
         """Assert a tool was called exactly N times."""
-        func_name = spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
+        func_name = (
+            spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
+        )
         expected_count = int(spec.value) if spec.value else 0
         calls = self._get_all_tool_calls(run)
         actual_count = sum(1 for name, _, _ in calls if name == func_name)
@@ -246,7 +250,9 @@ class AssertionEngine:
         return AssertionResult(
             assertion=spec,
             passed=passed,
-            message="" if passed else f"Tool '{func_name}' called {actual_count} times, expected {expected_count}",
+            message=""
+            if passed
+            else f"Tool '{func_name}' called {actual_count} times, expected {expected_count}",
         )
 
     def _check_policy(self, run: AgentRun, policy: PolicySpec) -> AssertionResult:
@@ -292,14 +298,20 @@ class AssertionEngine:
                         return AssertionResult(
                             assertion=spec,
                             passed=False,
-                            message=f"Tool '{tc.function}' called at turn 0 with no prior confirmation",
+                            message=(
+                                f"Tool '{tc.function}' called at turn 0 "
+                                f"with no prior confirmation"
+                            ),
                         )
                     prev = run.turns[i - 1]
                     if prev.role != TurnRole.USER:
                         return AssertionResult(
                             assertion=spec,
                             passed=False,
-                            message=f"Tool '{tc.function}' at turn {i} not preceded by user confirmation",
+                            message=(
+                                f"Tool '{tc.function}' at turn {i} "
+                                f"not preceded by user confirmation"
+                            ),
                         )
 
         return AssertionResult(assertion=spec, passed=True)

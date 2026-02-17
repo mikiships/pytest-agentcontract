@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 from agentcontract import __version__
 from agentcontract.serialization import save_run
@@ -35,7 +36,10 @@ class Recorder:
             recorder.add_turn(
                 role="assistant",
                 content="Let me check your order.",
-                tool_calls=[{"id": "1", "function": "lookup_order", "arguments": {"order_id": "123"}, "result": {...}}]
+                tool_calls=[{
+                    "id": "1", "function": "lookup_order",
+                    "arguments": {"order_id": "123"}, "result": {...}
+                }]
             )
         recorder.save("tests/scenarios/refund-flow.agentrun.json")
     """

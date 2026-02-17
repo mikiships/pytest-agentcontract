@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import json
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import pytest
 
 from agentcontract.assertions.engine import AssertionEngine, ContractResult
 from agentcontract.config import AgentContractConfig
 from agentcontract.recorder.core import Recorder
-from agentcontract.replay.engine import ReplayEngine, ReplayResult
-from agentcontract.serialization import load_run, save_run
+from agentcontract.replay.engine import ReplayEngine
+from agentcontract.serialization import load_run
 from agentcontract.types import AgentRun
 
 

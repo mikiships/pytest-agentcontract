@@ -1,6 +1,5 @@
 """Tests for the Recorder."""
 
-import json
 from pathlib import Path
 
 from agentcontract.recorder.core import Recorder

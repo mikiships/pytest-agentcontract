@@ -11,20 +11,12 @@ def test_config_from_dict():
         "scenarios": {"include": ["tests/**/*.agentrun.json"]},
         "replay": {"stub_tools": True, "concurrency": 3},
         "defaults": {
-            "assertions": [
-                {"type": "contains", "target": "final_response", "value": "refund"}
-            ]
+            "assertions": [{"type": "contains", "target": "final_response", "value": "refund"}]
         },
         "overrides": {
-            "denied-flow": {
-                "assertions": [
-                    {"type": "not_called", "target": "tool:process_refund"}
-                ]
-            }
+            "denied-flow": {"assertions": [{"type": "not_called", "target": "tool:process_refund"}]}
         },
-        "policies": [
-            {"name": "tools", "type": "tool_allowlist", "tools": ["lookup_order"]}
-        ],
+        "policies": [{"name": "tools", "type": "tool_allowlist", "tools": ["lookup_order"]}],
     }
 
     config = AgentContractConfig.from_dict(raw)

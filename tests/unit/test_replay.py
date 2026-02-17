@@ -1,9 +1,9 @@
 """Tests for the ReplayEngine."""
 
-from agentcontract.replay.engine import ReplayEngine, ToolStubExhausted
-from agentcontract.types import AgentRun, ModelInfo, RunMetadata, ToolCall, Turn, TurnRole
-
 import pytest
+
+from agentcontract.replay.engine import ReplayEngine, ToolStubExhausted
+from agentcontract.types import AgentRun, RunMetadata, ToolCall, Turn, TurnRole
 
 
 def _make_run() -> AgentRun:

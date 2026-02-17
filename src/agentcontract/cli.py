@@ -84,7 +84,7 @@ def _cmd_init() -> int:
         print(f"Error: {target} already exists", file=sys.stderr)
         return 1
 
-    template = '''\
+    template = """\
 version: "1"
 
 scenarios:
@@ -113,7 +113,7 @@ budgets:
 reporting:
   github_comment: true
   artifact_path: "agentci-results/"
-'''
+"""
     target.write_text(template)
     print(f"Created {target}")
     return 0

@@ -80,7 +80,9 @@ class TestRegex:
         engine = AssertionEngine()
         result = engine.check(
             _make_run(),
-            assertions=[AssertionSpec(type="regex", target="final_response", value=r"\$\d+\.\d{2}")],
+            assertions=[
+                AssertionSpec(type="regex", target="final_response", value=r"\$\d+\.\d{2}")
+            ],
         )
         assert result.passed
 
@@ -220,7 +222,11 @@ class TestRequiresConfirmationPolicy:
                     role=TurnRole.ASSISTANT,  # no user confirmation before this!
                     content="Refunding.",
                     tool_calls=[
-                        ToolCall(id="tc2", function="process_refund", arguments={"order_id": "123", "amount": 49.99})
+                        ToolCall(
+                            id="tc2",
+                            function="process_refund",
+                            arguments={"order_id": "123", "amount": 49.99},
+                        )
                     ],
                 ),
             ],
