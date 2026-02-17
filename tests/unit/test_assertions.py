@@ -172,6 +172,14 @@ class TestCalledWith:
         )
         assert result.passed
 
+    def test_fail_when_schema_missing(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            assertions=[AssertionSpec(type="called_with", target="tool:lookup_order")],
+        )
+        assert not result.passed
+
 
 class TestToolAllowlistPolicy:
     def test_pass(self):

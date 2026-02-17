@@ -224,7 +224,14 @@ class AssertionEngine:
         func_name = (
             spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
         )
-        expected_args = spec.schema or {}  # reuse schema field for expected args
+        if spec.schema is None:
+            return AssertionResult(
+                assertion=spec,
+                passed=False,
+                message="'called_with' requires expected arguments in 'schema'",
+            )
+
+        expected_args = spec.schema  # reuse schema field for expected args
         calls = self._get_all_tool_calls(run)
 
         for name, args, _ in calls:
