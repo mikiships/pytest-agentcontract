@@ -30,37 +30,38 @@ def patch_openai(client: Any, recorder: Recorder) -> Callable[[], None]:
         latency_ms = (time.monotonic() - start) * 1000
 
         # Extract tool calls from response
-        choice = response.choices[0] if response.choices else None
+        choices = _get_field(response, "choices", [])
+        choice = choices[0] if choices else None
+        message = _get_field(choice, "message")
         tool_calls_data: list[dict[str, Any]] = []
-        if choice and choice.message and choice.message.tool_calls:
-            for tc in choice.message.tool_calls:
-                tool_calls_data.append(
-                    {
-                        "id": tc.id,
-                        "function": tc.function.name,
-                        "arguments": _safe_parse_json(tc.function.arguments),
-                        # result is NOT available here; see docstring
-                    }
-                )
+        for tc in _get_field(message, "tool_calls", []) or []:
+            fn = _get_field(tc, "function")
+            tool_calls_data.append(
+                {
+                    "id": _get_field(tc, "id", ""),
+                    "function": _get_field(fn, "name", ""),
+                    "arguments": _safe_parse_json(_get_field(fn, "arguments")),
+                    # result is NOT available here; see docstring
+                }
+            )
 
         # Record the assistant turn
-        content = None
-        if choice and choice.message:
-            content = choice.message.content
+        content = _get_field(message, "content")
 
-        usage = response.usage
+        usage = _get_field(response, "usage")
         recorder.add_turn(
             role="assistant",
             content=content,
             tool_calls=tool_calls_data or None,
             latency_ms=latency_ms,
-            prompt_tokens=getattr(usage, "prompt_tokens", 0) if usage else 0,
-            completion_tokens=getattr(usage, "completion_tokens", 0) if usage else 0,
+            prompt_tokens=int(_get_field(usage, "prompt_tokens", 0) or 0),
+            completion_tokens=int(_get_field(usage, "completion_tokens", 0) or 0),
         )
 
         # Update model info from response
-        if hasattr(response, "model") and response.model:
-            recorder.run.model.model = response.model
+        model_name = _get_field(response, "model")
+        if model_name:
+            recorder.run.model.model = model_name
             recorder.run.model.provider = "openai"
 
         return response
@@ -93,31 +94,32 @@ def patch_anthropic(client: Any, recorder: Recorder) -> Callable[[], None]:
         # Extract content and tool calls
         content_text = ""
         tool_calls_data: list[dict[str, Any]] = []
-        for block in getattr(response, "content", []):
-            block_type = getattr(block, "type", None)
+        for block in _get_field(response, "content", []) or []:
+            block_type = _get_field(block, "type")
             if block_type == "text":
-                content_text += getattr(block, "text", "")
+                content_text += str(_get_field(block, "text", ""))
             elif block_type == "tool_use":
                 tool_calls_data.append(
                     {
-                        "id": getattr(block, "id", ""),
-                        "function": getattr(block, "name", ""),
-                        "arguments": getattr(block, "input", {}),
+                        "id": _get_field(block, "id", ""),
+                        "function": _get_field(block, "name", ""),
+                        "arguments": _get_field(block, "input", {}),
                     }
                 )
 
-        usage = getattr(response, "usage", None)
+        usage = _get_field(response, "usage")
         recorder.add_turn(
             role="assistant",
             content=content_text or None,
             tool_calls=tool_calls_data or None,
             latency_ms=latency_ms,
-            prompt_tokens=getattr(usage, "input_tokens", 0) if usage else 0,
-            completion_tokens=getattr(usage, "output_tokens", 0) if usage else 0,
+            prompt_tokens=int(_get_field(usage, "input_tokens", 0) or 0),
+            completion_tokens=int(_get_field(usage, "output_tokens", 0) or 0),
         )
 
-        if hasattr(response, "model") and response.model:
-            recorder.run.model.model = response.model
+        model_name = _get_field(response, "model")
+        if model_name:
+            recorder.run.model.model = model_name
             recorder.run.model.provider = "anthropic"
 
         return response
@@ -145,3 +147,12 @@ def _safe_parse_json(s: str | None) -> dict[str, Any]:
         return result
     except (json.JSONDecodeError, TypeError):
         return {"_raw": s}
+
+
+def _get_field(obj: Any, name: str, default: Any = None) -> Any:
+    """Read a field from dict-like or object-like SDK responses."""
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(name, default)
+    return getattr(obj, name, default)

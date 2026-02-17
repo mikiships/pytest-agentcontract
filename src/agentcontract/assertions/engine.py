@@ -110,25 +110,28 @@ class AssertionEngine:
         """
         if target == "final_response":
             for turn in reversed(run.turns):
-                if turn.role == TurnRole.ASSISTANT and turn.content:
+                if turn.role == TurnRole.ASSISTANT and turn.content is not None:
                     return turn.content
             return None
 
         if target == "full_conversation":
             parts = []
             for turn in run.turns:
-                if turn.content:
+                if turn.content is not None:
                     parts.append(f"{turn.role.value}: {turn.content}")
             return "\n".join(parts)
 
         if target.startswith("turn:"):
-            idx = int(target.split(":")[1])
+            _, raw_idx = target.split(":", 1)
+            idx = int(raw_idx)
             if 0 <= idx < len(run.turns):
                 return run.turns[idx].content
             return None
 
         if target.startswith("tool_call:"):
-            parts = target.split(":")
+            parts = target.split(":", 2)
+            if len(parts) < 2 or not parts[1]:
+                return None
             func_name = parts[1]
             field_name = parts[2] if len(parts) > 2 else "arguments"
 

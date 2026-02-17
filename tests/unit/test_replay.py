@@ -130,3 +130,39 @@ def test_replay_finish_mismatch():
     assert not result.ok
     assert result.mismatched_tools >= 1
     assert any("wrong_tool" in e for e in result.errors)
+
+
+def test_replay_finish_counts_extra_and_missing_tools():
+    run = _make_run()
+    engine = ReplayEngine(run)
+
+    # Turn 1 has one extra tool call and we also drop the final two recorded turns.
+    actual_turns = [
+        run.turns[0],
+        Turn(
+            index=1,
+            role=TurnRole.ASSISTANT,
+            content="Looking it up.",
+            tool_calls=[
+                ToolCall(
+                    id="tc1",
+                    function="lookup_order",
+                    arguments={"order_id": "123"},
+                    result={"status": "delivered", "total": 49.99},
+                ),
+                ToolCall(
+                    id="tc_extra",
+                    function="lookup_order",
+                    arguments={"order_id": "123"},
+                    result={"status": "delivered", "total": 49.99},
+                ),
+            ],
+        ),
+    ]
+
+    result = engine.finish(actual_turns=actual_turns)
+
+    assert not result.ok
+    assert result.extra_tools == 1
+    assert result.missing_tools == 1
+    assert result.mismatched_tools >= 2

@@ -88,29 +88,46 @@ class AgentContractConfig:
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> AgentContractConfig:
         """Parse a raw dict into config."""
-        scenarios = raw.get("scenarios", {})
-        replay_raw = raw.get("replay", {})
-        defaults_raw = raw.get("defaults", {})
-        budgets = raw.get("budgets", {})
-        per_scenario = budgets.get("per_scenario", {})
-        suite = budgets.get("suite", {})
-        reporting = raw.get("reporting", {})
-        baseline = raw.get("baseline", {})
+        raw = _coerce_dict(raw)
+        scenarios = _coerce_dict(raw.get("scenarios"))
+        replay_raw = _coerce_dict(raw.get("replay"))
+        defaults_raw = _coerce_dict(raw.get("defaults"))
+        budgets = _coerce_dict(raw.get("budgets"))
+        per_scenario = _coerce_dict(budgets.get("per_scenario"))
+        suite = _coerce_dict(budgets.get("suite"))
+        reporting = _coerce_dict(raw.get("reporting"))
+        baseline = _coerce_dict(raw.get("baseline"))
+        thresholds = _coerce_dict(raw.get("thresholds"))
 
-        default_assertions = [_parse_assertion(a) for a in defaults_raw.get("assertions", [])]
+        default_assertions = [
+            _parse_assertion(a)
+            for a in _coerce_list(defaults_raw.get("assertions"), [])
+            if isinstance(a, dict)
+        ]
 
         overrides: dict[str, ScenarioOverride] = {}
-        for name, override_raw in raw.get("overrides", {}).items():
+        for name, override_raw in _coerce_dict(raw.get("overrides")).items():
+            override_raw = _coerce_dict(override_raw)
             overrides[name] = ScenarioOverride(
-                assertions=[_parse_assertion(a) for a in override_raw.get("assertions", [])]
+                assertions=[
+                    _parse_assertion(a)
+                    for a in _coerce_list(override_raw.get("assertions"), [])
+                    if isinstance(a, dict)
+                ]
             )
 
-        policies = [_parse_policy(p) for p in raw.get("policies", [])]
+        policies = [
+            _parse_policy(p)
+            for p in _coerce_list(raw.get("policies"), [])
+            if isinstance(p, dict)
+        ]
 
         return cls(
             version=str(raw.get("version", "1")),
-            scenario_include=scenarios.get("include", ["tests/scenarios/**/*.agentrun.json"]),
-            scenario_exclude=scenarios.get("exclude", []),
+            scenario_include=_coerce_list(
+                scenarios.get("include"), ["tests/scenarios/**/*.agentrun.json"]
+            ),
+            scenario_exclude=_coerce_list(scenarios.get("exclude"), []),
             replay=ReplayConfig(
                 model=replay_raw.get("model", ""),
                 seed=replay_raw.get("seed", 42),
@@ -120,7 +137,7 @@ class AgentContractConfig:
             default_assertions=default_assertions,
             overrides=overrides,
             policies=policies,
-            suite_pass_rate=raw.get("thresholds", {}).get("suite_pass_rate", 1.0),
+            suite_pass_rate=thresholds.get("suite_pass_rate", 1.0),
             per_scenario_budget=BudgetConfig(
                 max_cost_usd=per_scenario.get("max_cost_usd", 0.05),
                 max_latency_ms=per_scenario.get("max_latency_ms", 10000),
@@ -166,3 +183,17 @@ def _parse_policy(raw: dict[str, Any]) -> PolicySpec:
         tools=raw.get("tools", []),
         block=raw.get("block", []),
     )
+
+
+def _coerce_dict(value: Any) -> dict[str, Any]:
+    """Normalize config sections that may be null in YAML."""
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
+def _coerce_list(value: Any, default: list[Any]) -> list[Any]:
+    """Normalize config list fields while preserving sensible defaults."""
+    if isinstance(value, list):
+        return value
+    return list(default)

@@ -56,3 +56,25 @@ def test_config_defaults():
     assert config.suite_pass_rate == 1.0
     assert config.replay.stub_tools is True
     assert config.per_scenario_budget.max_turns == 15
+
+
+def test_config_from_dict_handles_null_sections():
+    config = AgentContractConfig.from_dict(
+        {
+            "scenarios": None,
+            "replay": None,
+            "defaults": None,
+            "overrides": None,
+            "policies": None,
+            "thresholds": None,
+            "budgets": None,
+            "reporting": None,
+            "baseline": None,
+        }
+    )
+    assert config.scenario_include == ["tests/scenarios/**/*.agentrun.json"]
+    assert config.scenario_exclude == []
+    assert config.default_assertions == []
+    assert config.overrides == {}
+    assert config.policies == []
+    assert config.replay.stub_tools is True

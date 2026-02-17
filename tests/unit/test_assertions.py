@@ -74,6 +74,22 @@ class TestExact:
         )
         assert result.passed
 
+    def test_final_response_can_be_empty_string(self):
+        engine = AssertionEngine()
+        run = AgentRun(
+            metadata=RunMetadata(scenario="empty-final-response"),
+            turns=[
+                Turn(index=0, role=TurnRole.USER, content="Hi"),
+                Turn(index=1, role=TurnRole.ASSISTANT, content="Interim response"),
+                Turn(index=2, role=TurnRole.ASSISTANT, content=""),
+            ],
+        )
+        result = engine.check(
+            run,
+            assertions=[AssertionSpec(type="exact", target="final_response", value="")],
+        )
+        assert result.passed
+
 
 class TestRegex:
     def test_pass(self):

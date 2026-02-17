@@ -119,6 +119,10 @@ class ReplayEngine:
         recorded_turns = self._recorded.turns
         for i, actual in enumerate(actual_turns):
             if i >= len(recorded_turns):
+                extra_call_count = len(actual.tool_calls)
+                if extra_call_count:
+                    result.extra_tools += extra_call_count
+                    result.mismatched_tools += extra_call_count
                 result.errors.append(
                     f"Extra turn {i}: role={actual.role.value}, "
                     f"content={actual.content[:50] if actual.content else '(none)'}..."
@@ -135,7 +139,12 @@ class ReplayEngine:
 
             # Check tool call match
             if len(actual.tool_calls) != len(expected.tool_calls):
-                result.mismatched_tools += abs(len(actual.tool_calls) - len(expected.tool_calls))
+                diff = len(actual.tool_calls) - len(expected.tool_calls)
+                if diff > 0:
+                    result.extra_tools += diff
+                else:
+                    result.missing_tools += -diff
+                result.mismatched_tools += abs(diff)
                 result.errors.append(
                     f"Turn {i}: expected {len(expected.tool_calls)} tool calls, "
                     f"got {len(actual.tool_calls)}"
@@ -161,6 +170,11 @@ class ReplayEngine:
         # Check for missing turns
         if len(actual_turns) < len(recorded_turns):
             missing = len(recorded_turns) - len(actual_turns)
+            missing_turns = recorded_turns[len(actual_turns) :]
+            missing_call_count = sum(len(turn.tool_calls) for turn in missing_turns)
+            if missing_call_count:
+                result.missing_tools += missing_call_count
+                result.mismatched_tools += missing_call_count
             result.errors.append(
                 f"Missing {missing} turns (recorded {len(recorded_turns)}, got {len(actual_turns)})"
             )
