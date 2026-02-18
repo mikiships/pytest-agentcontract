@@ -81,12 +81,13 @@ class AssertionEngine:
             "called_count": self._check_called_count,
         }
 
-        checker = checkers.get(spec.type)
+        assertion_type = str(getattr(spec.type, "value", spec.type))
+        checker = checkers.get(assertion_type)
         if checker is None:
             return AssertionResult(
                 assertion=spec,
                 passed=False,
-                message=f"Unknown assertion type: {spec.type}",
+                message=f"Unknown assertion type: {assertion_type}",
             )
 
         try:
@@ -108,9 +109,17 @@ class AssertionEngine:
             tool_call:function_name:arguments - tool call arguments
             tool_call:function_name:result - tool call result
         """
+        if not isinstance(target, str):
+            target = getattr(target, "value", target)
+            if not isinstance(target, str):
+                return None
+
         if target == "final_response":
             for turn in reversed(run.turns):
-                if turn.role == TurnRole.ASSISTANT and turn.content is not None:
+                if (
+                    str(getattr(turn.role, "value", turn.role)) == TurnRole.ASSISTANT.value
+                    and turn.content is not None
+                ):
                     return turn.content
             return None
 
@@ -118,12 +127,15 @@ class AssertionEngine:
             parts = []
             for turn in run.turns:
                 if turn.content is not None:
-                    parts.append(f"{turn.role.value}: {turn.content}")
+                    parts.append(f"{getattr(turn.role, 'value', turn.role)}: {turn.content}")
             return "\n".join(parts)
 
         if target.startswith("turn:"):
             _, raw_idx = target.split(":", 1)
-            idx = int(raw_idx)
+            try:
+                idx = int(raw_idx)
+            except (TypeError, ValueError):
+                return None
             if 0 <= idx < len(run.turns):
                 return run.turns[idx].content
             return None
@@ -137,7 +149,7 @@ class AssertionEngine:
 
             for turn in run.turns:
                 for tc in turn.tool_calls:
-                    if tc.function == func_name:
+                    if str(getattr(tc.function, "value", tc.function)) == func_name:
                         if field_name == "arguments":
                             return tc.arguments
                         elif field_name == "result":
@@ -151,7 +163,8 @@ class AssertionEngine:
         calls = []
         for turn in run.turns:
             for tc in turn.tool_calls:
-                calls.append((tc.function, tc.arguments, tc.result))
+                func = str(getattr(tc.function, "value", tc.function))
+                calls.append((func, tc.arguments, tc.result))
         return calls
 
     def _check_exact(self, run: AgentRun, spec: AssertionSpec) -> AssertionResult:
@@ -177,7 +190,7 @@ class AssertionEngine:
                 passed=False,
                 message=f"Target '{spec.target}' resolved to None",
             )
-        passed = spec.value in str(actual)
+        passed = str(spec.value) in str(actual)
         return AssertionResult(
             assertion=spec,
             passed=passed,
@@ -190,7 +203,7 @@ class AssertionEngine:
             return AssertionResult(
                 assertion=spec, passed=False, message="Target or pattern is None"
             )
-        passed = bool(re.search(spec.value, str(actual)))
+        passed = bool(re.search(str(spec.value), str(actual)))
         return AssertionResult(
             assertion=spec,
             passed=passed,
@@ -214,9 +227,8 @@ class AssertionEngine:
     def _check_not_called(self, run: AgentRun, spec: AssertionSpec) -> AssertionResult:
         """Assert a tool was NOT called."""
         # target format: "tool:function_name" or just the function name
-        func_name = (
-            spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
-        )
+        target = str(getattr(spec.target, "value", spec.target))
+        func_name = target.replace("tool:", "") if target.startswith("tool:") else target
         calls = self._get_all_tool_calls(run)
         called = any(name == func_name for name, _, _ in calls)
         return AssertionResult(
@@ -227,9 +239,8 @@ class AssertionEngine:
 
     def _check_called_with(self, run: AgentRun, spec: AssertionSpec) -> AssertionResult:
         """Assert a tool was called with specific arguments."""
-        func_name = (
-            spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
-        )
+        target = str(getattr(spec.target, "value", spec.target))
+        func_name = target.replace("tool:", "") if target.startswith("tool:") else target
         if spec.schema is None:
             return AssertionResult(
                 assertion=spec,
@@ -261,18 +272,29 @@ class AssertionEngine:
 
     def _check_called_count(self, run: AgentRun, spec: AssertionSpec) -> AssertionResult:
         """Assert a tool was called exactly N times."""
-        func_name = (
-            spec.target.replace("tool:", "") if spec.target.startswith("tool:") else spec.target
-        )
+        target = str(getattr(spec.target, "value", spec.target))
+        func_name = target.replace("tool:", "") if target.startswith("tool:") else target
         if spec.value is None:
             return AssertionResult(
                 assertion=spec,
                 passed=False,
                 message="'called_count' requires an integer 'value'",
             )
+        if isinstance(spec.value, bool):
+            return AssertionResult(
+                assertion=spec,
+                passed=False,
+                message="'called_count' expects an integer 'value'",
+            )
+        if isinstance(spec.value, float) and not spec.value.is_integer():
+            return AssertionResult(
+                assertion=spec,
+                passed=False,
+                message="'called_count' expects an integer 'value'",
+            )
         try:
             expected_count = int(spec.value)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return AssertionResult(
                 assertion=spec,
                 passed=False,
@@ -298,12 +320,13 @@ class AssertionEngine:
             "requires_confirmation": self._policy_requires_confirmation,
         }
 
-        checker = policy_checkers.get(policy.type)
+        policy_type = str(getattr(policy.type, "value", policy.type))
+        checker = policy_checkers.get(policy_type)
         if checker is None:
             return AssertionResult(
                 assertion=AssertionSpec(type=f"policy:{policy.name}"),
                 passed=False,
-                message=f"Unknown policy type: {policy.type}",
+                message=f"Unknown policy type: {policy_type}",
             )
 
         try:
@@ -335,7 +358,7 @@ class AssertionEngine:
 
         for i, turn in enumerate(run.turns):
             for tc in turn.tool_calls:
-                if tc.function in policy.tools:
+                if str(getattr(tc.function, "value", tc.function)) in policy.tools:
                     # Check if previous turn was a user message (confirmation)
                     if i == 0:
                         return AssertionResult(
@@ -347,7 +370,7 @@ class AssertionEngine:
                             ),
                         )
                     prev = run.turns[i - 1]
-                    if prev.role != TurnRole.USER:
+                    if str(getattr(prev.role, "value", prev.role)) != TurnRole.USER.value:
                         return AssertionResult(
                             assertion=spec,
                             passed=False,

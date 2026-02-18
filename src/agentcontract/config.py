@@ -229,9 +229,13 @@ def _coerce_int(value: Any, default: int) -> int:
     """Normalize numeric config fields that should be integers."""
     if value is None:
         return default
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, float) and not value.is_integer():
+        return default
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return default
 
 
@@ -239,15 +243,21 @@ def _coerce_optional_int(value: Any, default: int | None = None) -> int | None:
     """Normalize optional integer config fields."""
     if value is None:
         return default
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, float) and not value.is_integer():
+        return default
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return default
 
 
 def _coerce_float(value: Any, default: float) -> float:
     """Normalize numeric config fields that should be floats."""
     if value is None:
+        return default
+    if isinstance(value, bool):
         return default
     try:
         return float(value)

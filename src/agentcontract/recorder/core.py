@@ -103,7 +103,8 @@ class Recorder:
         try:
             yield self
         finally:
-            elapsed = time.monotonic() - self._start_time
+            start_time = self._start_time
+            elapsed = time.monotonic() - start_time if start_time is not None else 0.0
             self._run.summary = RunSummary(
                 total_turns=len(self._run.turns),
                 total_duration_ms=elapsed * 1000,

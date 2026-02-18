@@ -12,7 +12,10 @@ def _preview_content(content: Any, max_chars: int = 50) -> str:
     """Safely format turn content for replay diff messages."""
     if content is None:
         return "(none)"
-    text = content if isinstance(content, str) else str(content)
+    try:
+        text = content if isinstance(content, str) else str(content)
+    except Exception as e:
+        return f"(unprintable {type(content).__name__}: {type(e).__name__}: {e})"
     if len(text) > max_chars:
         return f"{text[:max_chars]}..."
     return text

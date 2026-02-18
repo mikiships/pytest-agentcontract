@@ -118,6 +118,14 @@ def _to_json_compatible(value: Any) -> Any:
 
 def run_to_dict(run: AgentRun) -> dict[str, Any]:
     """Serialize an AgentRun to a JSON-compatible dictionary."""
+    model = run.model if isinstance(run.model, ModelInfo) else ModelInfo(provider="", model="")
+    metadata = run.metadata if isinstance(run.metadata, RunMetadata) else RunMetadata()
+    summary = run.summary if isinstance(run.summary, RunSummary) else RunSummary()
+    total_tokens = (
+        summary.total_tokens if isinstance(summary.total_tokens, TokenUsage) else TokenUsage()
+    )
+    turns = run.turns if isinstance(run.turns, list) else []
+
     return _to_json_compatible(
         {
             "schema_version": run.schema_version,
@@ -128,58 +136,63 @@ def run_to_dict(run: AgentRun) -> dict[str, Any]:
                 "sdk": run.sdk,
             },
             "model": {
-                "provider": run.model.provider,
-                "model": run.model.model,
-                "temperature": run.model.temperature,
-                "top_p": run.model.top_p,
-                "max_tokens": run.model.max_tokens,
-                "seed": run.model.seed,
+                "provider": model.provider,
+                "model": model.model,
+                "temperature": model.temperature,
+                "top_p": model.top_p,
+                "max_tokens": model.max_tokens,
+                "seed": model.seed,
             },
             "metadata": {
-                "scenario": run.metadata.scenario,
-                "tags": run.metadata.tags,
-                "description": run.metadata.description,
+                "scenario": metadata.scenario,
+                "tags": metadata.tags,
+                "description": metadata.description,
             },
             "summary": {
-                "total_turns": run.summary.total_turns,
-                "total_duration_ms": run.summary.total_duration_ms,
+                "total_turns": summary.total_turns,
+                "total_duration_ms": summary.total_duration_ms,
                 "total_tokens": {
-                    "prompt": run.summary.total_tokens.prompt,
-                    "completion": run.summary.total_tokens.completion,
-                    "total": run.summary.total_tokens.total,
+                    "prompt": total_tokens.prompt,
+                    "completion": total_tokens.completion,
+                    "total": total_tokens.total,
                 },
-                "total_tool_calls": run.summary.total_tool_calls,
-                "estimated_cost_usd": run.summary.estimated_cost_usd,
+                "total_tool_calls": summary.total_tool_calls,
+                "estimated_cost_usd": summary.estimated_cost_usd,
             },
-            "turns": [_turn_to_dict(t) for t in run.turns],
+            "turns": [_turn_to_dict(t) for t in turns if isinstance(t, Turn)],
         }
     )
 
 
 def _turn_to_dict(turn: Turn) -> dict[str, Any]:
+    role = turn.role.value if isinstance(turn.role, TurnRole) else _coerce_str(turn.role)
+    if not role:
+        role = TurnRole.ASSISTANT.value
+
     d: dict[str, Any] = {
-        "index": turn.index,
-        "role": turn.role.value,
+        "index": _coerce_int(turn.index, 0),
+        "role": role,
     }
     if turn.content is not None:
         d["content"] = turn.content
-    if turn.tool_calls:
+    if isinstance(turn.tool_calls, list) and turn.tool_calls:
         d["tool_calls"] = [
             {
                 "id": tc.id,
                 "function": tc.function,
-                "arguments": tc.arguments,
+                "arguments": _coerce_tool_arguments(tc.arguments),
                 "result": tc.result,
                 "duration_ms": tc.duration_ms,
             }
             for tc in turn.tool_calls
+            if isinstance(tc, ToolCall)
         ]
-    if turn.timing:
+    if isinstance(turn.timing, Timing):
         d["timing"] = {
             "latency_ms": turn.timing.latency_ms,
             "time_to_first_token_ms": turn.timing.time_to_first_token_ms,
         }
-    if turn.tokens:
+    if isinstance(turn.tokens, TokenUsage):
         d["tokens"] = {
             "prompt": turn.tokens.prompt,
             "completion": turn.tokens.completion,
@@ -190,6 +203,8 @@ def _turn_to_dict(turn: Turn) -> dict[str, Any]:
 
 def run_from_dict(data: dict[str, Any]) -> AgentRun:
     """Deserialize a dictionary into an AgentRun."""
+    if not isinstance(data, dict):
+        data = {}
     source = _coerce_dict(data.get("source"))
     model_data = _coerce_dict(data.get("model"))
     meta = _coerce_dict(data.get("metadata"))

@@ -100,7 +100,12 @@ def ac_recorder(request: pytest.FixtureRequest) -> Generator[Recorder, None, Non
     if request.config.getoption("--ac-record"):
         scenarios_dir = request.config.getoption("--ac-scenarios") or "tests/scenarios"
         path = Path(scenarios_dir) / f"{scenario}.agentrun.json"
-        recorder.save(path)
+        try:
+            recorder.save(path)
+        except (OSError, ValueError, TypeError) as e:
+            pytest.fail(
+                f"Failed to save cassette '{path}' ({type(e).__name__}): {e}"
+            )
 
 
 @pytest.fixture
@@ -132,7 +137,12 @@ def ac_replay_engine(
         pytest.skip(f"No cassette found at {cassette_path}")
         return None
 
-    run = load_run(cassette_path)
+    try:
+        run = load_run(cassette_path)
+    except (OSError, ValueError, TypeError) as e:
+        pytest.fail(
+            f"Failed to load cassette '{cassette_path}' ({type(e).__name__}): {e}"
+        )
     return ReplayEngine(run)
 
 

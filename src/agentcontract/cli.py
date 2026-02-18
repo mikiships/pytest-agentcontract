@@ -59,8 +59,11 @@ def _cmd_info(path: Path) -> int:
         print(f"Tokens:      {run.summary.total_tokens.total}")
         print(f"Est. cost:   ${run.summary.estimated_cost_usd:.4f}")
         return 0
-    except Exception as e:
-        print(f"Error: failed to read cassette '{path}': {e}", file=sys.stderr)
+    except (OSError, ValueError, TypeError) as e:
+        print(
+            f"Error: failed to read cassette '{path}' ({type(e).__name__}): {e}",
+            file=sys.stderr,
+        )
         return 1
 
 
@@ -76,8 +79,8 @@ def _cmd_validate(path: Path) -> int:
         run = load_run(path)
         print(f"✓ Valid cassette: {run.metadata.scenario} ({len(run.turns)} turns)")
         return 0
-    except Exception as e:
-        print(f"✗ Invalid cassette: {e}", file=sys.stderr)
+    except (OSError, ValueError, TypeError) as e:
+        print(f"✗ Invalid cassette ({type(e).__name__}): {e}", file=sys.stderr)
         return 1
 
 
@@ -118,7 +121,11 @@ reporting:
   github_comment: true
   artifact_path: "agentci-results/"
 """
-    target.write_text(template)
+    try:
+        target.write_text(template)
+    except OSError as e:
+        print(f"Error: failed to write {target}: {e}", file=sys.stderr)
+        return 1
     print(f"Created {target}")
     return 0
 

@@ -22,7 +22,11 @@ def patch_openai(client: Any, recorder: Recorder) -> Callable[[], None]:
     1. Use ``recorder.add_turn()`` manually for tool-result messages, or
     2. Post-process the cassette to backfill results from your tool execution.
     """
-    original_create = client.chat.completions.create
+    chat = getattr(client, "chat", None)
+    completions = getattr(chat, "completions", None) if chat is not None else None
+    original_create = getattr(completions, "create", None)
+    if not callable(original_create):
+        raise ValueError("OpenAI client is missing chat.completions.create")
 
     @functools.wraps(original_create)
     def recording_create(*args: Any, **kwargs: Any) -> Any:
@@ -36,10 +40,10 @@ def patch_openai(client: Any, recorder: Recorder) -> Callable[[], None]:
         _record_openai_response(response, recorder, latency_ms)
         return response
 
-    client.chat.completions.create = recording_create
+    completions.create = recording_create
 
     def unpatch() -> None:
-        client.chat.completions.create = original_create
+        completions.create = original_create
 
     return unpatch
 
@@ -53,7 +57,10 @@ def patch_anthropic(client: Any, recorder: Recorder) -> Callable[[], None]:
     in subsequent ``tool_result`` messages.  The interceptor records tool_use
     requests only.
     """
-    original_create = client.messages.create
+    messages = getattr(client, "messages", None)
+    original_create = getattr(messages, "create", None)
+    if not callable(original_create):
+        raise ValueError("Anthropic client is missing messages.create")
 
     @functools.wraps(original_create)
     def recording_create(*args: Any, **kwargs: Any) -> Any:
@@ -67,10 +74,10 @@ def patch_anthropic(client: Any, recorder: Recorder) -> Callable[[], None]:
         _record_anthropic_response(response, recorder, latency_ms)
         return response
 
-    client.messages.create = recording_create
+    messages.create = recording_create
 
     def unpatch() -> None:
-        client.messages.create = original_create
+        messages.create = original_create
 
     return unpatch
 

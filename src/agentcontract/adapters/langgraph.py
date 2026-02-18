@@ -36,8 +36,17 @@ def record_graph(graph: Any, recorder: Recorder) -> Callable[[], None]:
         graph: A LangGraph CompiledGraph (from ``graph.compile()``).
         recorder: A Recorder instance to capture the trajectory.
     """
+    if not isinstance(recorder, Recorder):
+        raise TypeError("recorder must be a Recorder instance")
+
     original_invoke = getattr(graph, "invoke", None)
     original_ainvoke = getattr(graph, "ainvoke", None)
+    if original_invoke is not None and not callable(original_invoke):
+        raise TypeError("graph.invoke must be callable")
+    if original_ainvoke is not None and not callable(original_ainvoke):
+        raise TypeError("graph.ainvoke must be callable")
+    if original_invoke is None and original_ainvoke is None:
+        raise ValueError("graph must define invoke and/or ainvoke")
 
     if original_invoke is not None:
 

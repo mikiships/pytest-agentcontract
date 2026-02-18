@@ -35,6 +35,9 @@ def record_runner(recorder: Recorder) -> Callable[[], None]:
     Args:
         recorder: A Recorder instance to capture the trajectory.
     """
+    if not isinstance(recorder, Recorder):
+        raise TypeError("recorder must be a Recorder instance")
+
     try:
         from agents import Runner  # type: ignore[import-untyped]
     except ImportError as e:
@@ -46,6 +49,8 @@ def record_runner(recorder: Recorder) -> Callable[[], None]:
 
     # Patch run (async)
     original_run = getattr(Runner, "run", None)
+    if original_run is not None and not callable(original_run):
+        raise TypeError("Runner.run must be callable")
     if original_run is not None:
         originals["run"] = original_run
 
@@ -61,6 +66,8 @@ def record_runner(recorder: Recorder) -> Callable[[], None]:
 
     # Patch run_sync
     original_run_sync = getattr(Runner, "run_sync", None)
+    if original_run_sync is not None and not callable(original_run_sync):
+        raise TypeError("Runner.run_sync must be callable")
     if original_run_sync is not None:
         originals["run_sync"] = original_run_sync
 
@@ -73,6 +80,9 @@ def record_runner(recorder: Recorder) -> Callable[[], None]:
             return result
 
         Runner.run_sync = recording_run_sync  # type: ignore[assignment]
+
+    if not originals:
+        raise ValueError("Runner must define run and/or run_sync")
 
     def unpatch() -> None:
         for name, orig in originals.items():

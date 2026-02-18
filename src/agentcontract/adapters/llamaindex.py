@@ -36,6 +36,9 @@ def record_agent(agent: Any, recorder: Recorder) -> Callable[[], None]:
         agent: A LlamaIndex AgentRunner, ReActAgent, or similar.
         recorder: A Recorder instance to capture the trajectory.
     """
+    if not isinstance(recorder, Recorder):
+        raise TypeError("recorder must be a Recorder instance")
+
     originals: dict[str, Any] = {}
     methods = ["chat", "achat", "query", "aquery"]
 
@@ -43,6 +46,8 @@ def record_agent(agent: Any, recorder: Recorder) -> Callable[[], None]:
         original = getattr(agent, method_name, None)
         if original is None:
             continue
+        if not callable(original):
+            raise TypeError(f"agent.{method_name} must be callable")
         originals[method_name] = original
 
         if method_name.startswith("a"):
@@ -77,6 +82,9 @@ def record_agent(agent: Any, recorder: Recorder) -> Callable[[], None]:
                 return result
 
             setattr(agent, method_name, sync_wrapper)
+
+    if not originals:
+        raise ValueError("agent must define at least one of: chat, achat, query, aquery")
 
     def unpatch() -> None:
         for name, orig in originals.items():
