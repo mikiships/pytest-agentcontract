@@ -9,6 +9,10 @@
 
 ---
 
+<p align="center">
+  <img src="docs/demo.gif" alt="pytest-agentcontract demo: record, replay, assert" width="600">
+</p>
+
 Your agent calls `lookup_order`, then `check_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
 
 ```bash

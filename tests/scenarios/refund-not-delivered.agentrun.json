@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "ffee0db2-9a12-4b26-98c7-047c6c23bdd6",
+  "source": {
+    "recorded_at": "2026-02-18T18:33:33.307229+00:00",
+    "recorder_version": "0.1.0",
+    "sdk": "agentcontract-python"
+  },
+  "model": {
+    "provider": "",
+    "model": "",
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "max_tokens": 4096,
+    "seed": null
+  },
+  "metadata": {
+    "scenario": "refund-not-delivered",
+    "tags": [],
+    "description": ""
+  },
+  "summary": {
+    "total_turns": 4,
+    "total_duration_ms": 0.42808300349861383,
+    "total_tokens": {
+      "prompt": 0,
+      "completion": 0,
+      "total": 0
+    },
+    "total_tool_calls": 2,
+    "estimated_cost_usd": 0.0
+  },
+  "turns": [
+    {
+      "index": 0,
+      "role": "user",
+      "content": "Refund my order ORD-456"
+    },
+    {
+      "index": 1,
+      "role": "assistant",
+      "content": "Let me look up order ORD-456.",
+      "tool_calls": [
+        {
+          "id": "tc_lookup",
+          "function": "lookup_order",
+          "arguments": {
+            "order_id": "ORD-456"
+          },
+          "result": {
+            "id": "ORD-456",
+            "customer": "bob@example.com",
+            "items": [
+              {
+                "name": "USB-C Cable",
+                "price": 12.99
+              }
+            ],
+            "total": 12.99,
+            "status": "shipped",
+            "delivered_at": null
+          },
+          "duration_ms": null
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "role": "assistant",
+      "content": "Checking refund eligibility...",
+      "tool_calls": [
+        {
+          "id": "tc_eligibility",
+          "function": "check_refund_eligibility",
+          "arguments": {
+            "order_id": "ORD-456"
+          },
+          "result": {
+            "eligible": false,
+            "reason": "Order status is 'shipped', not delivered"
+          },
+          "duration_ms": null
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "role": "assistant",
+      "content": "I'm sorry, this order isn't eligible for a refund. Reason: Order status is 'shipped', not delivered"
+    }
+  ]
+}
