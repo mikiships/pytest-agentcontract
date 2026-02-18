@@ -1,3 +1,80 @@
+# pytest-agentcontract
+
+Pytest plugin for deterministic CI tests of LLM agent trajectories.
+Record once, replay offline, assert contracts.
+
+## Project Structure
+- `src/agentcontract/` -- main package
+  - `recorder/` -- SDK interceptors (OpenAI, Anthropic) + core recorder
+  - `replay/` -- replay engine with tool stubbing
+  - `assertions/` -- 7 assertion types + 2 policy types
+  - `adapters/` -- LangGraph, LlamaIndex, OpenAI Agents SDK
+  - `plugin.py` -- pytest integration
+  - `cli.py` -- CLI entry point
+  - `config.py` -- YAML config loader
+  - `types.py` -- core type system
+  - `serialization.py` -- JSON cassette read/write
+- `tests/unit/` -- unit tests (77 total)
+- `examples/customer_support/` -- demo agent + tests
+
+## Commands
+- Tests: `.venv/bin/pytest tests/ -x -q`
+- Lint: `.venv/bin/ruff check src/ tests/`
+- Type check: `.venv/bin/mypy src/`
+- Build: `.venv/bin/python -m build`
+
+## Rules
+- Python 3.10+ compatibility required
+- All public functions need type hints
+- Smallest possible diffs for bug fixes
+- Do NOT move utility functions between modules
+- Do NOT refactor unless explicitly asked
+- Run tests + lint after every change
+
+## Nightshift Build Contracts
+
+When running as an overnight task, follow the contract for your assigned task type:
+
+### bug-finder
+- **Scope**: src/ only. Every function.
+- **Find**: off-by-one, unhandled None, wrong exception types, logic errors, broken error handling.
+- **Deliverable**: Fix each bug with smallest possible diff. Max 8 fixes per run.
+- **Stop when**: All src/ files reviewed, OR 8 fixes made, OR you catch yourself moving code between files.
+- **Validate**: `.venv/bin/pytest tests/ -x -q && .venv/bin/ruff check src/ tests/`
+- **Do NOT touch**: Style, naming, imports, module organization, tests, docs. No new tests. No moving utilities.
+
+### security-footgun
+- **Scope**: src/ only.
+- **Find**: shell injection, path traversal, unsafe deserialization, hardcoded secrets, eval/exec, unsanitized input.
+- **Deliverable**: Fix each vulnerability with minimal diff. Max 5 fixes per run. Add inline comment if non-obvious.
+- **Validate**: `.venv/bin/pytest tests/ -x -q && .venv/bin/ruff check src/ tests/`
+- **Do NOT touch**: Tests, docs, config files, CI workflows, dependencies.
+
+### test-gap
+- **Scope**: Compare src/ public functions against tests/. Find uncovered functions.
+- **Deliverable**: Write tests for up to 3 uncovered functions. Each test: happy path + one edge case. Put in `tests/unit/test_*.py`.
+- **Stop when**: 3 new tests written, or all public functions covered. Do NOT fix bugs found by new tests.
+- **Validate**: `.venv/bin/pytest tests/ -x -q`
+- **Do NOT touch**: Source code. Existing tests. This task ONLY adds tests.
+
+### lint-fix
+- **Scope**: src/ and tests/. Auto-fixable lint issues only.
+- **Deliverable**: Run `.venv/bin/ruff check --fix src/ tests/`. Fix remaining manual issues if obvious. Max 20 fixes.
+- **Validate**: `.venv/bin/ruff check src/ tests/ && .venv/bin/pytest tests/ -x -q`
+- **Do NOT touch**: Functional logic. Skip any fix that changes behavior.
+
+### dead-code
+- **Scope**: src/ only. Unused functions, unreachable branches, assigned-but-never-read variables.
+- **Deliverable**: Remove dead code. Max 10 removals. If uncertain (public API), leave it.
+- **Validate**: `.venv/bin/pytest tests/ -x -q`. If any test fails, revert last removal.
+- **Do NOT touch**: Public API surface (__init__.py exports). Tests. Docs.
+
+### docs-backfill
+- **Scope**: src/ public functions missing docstrings. README accuracy.
+- **Deliverable**: Add up to 5 docstrings. Check README examples match current API. Fix wrong examples.
+- **Validate**: `.venv/bin/ruff check src/ tests/`
+- **Do NOT touch**: Private functions, test files, functional code.
+
 <!-- prpm:snippet:start @agent-relay/agent-relay-snippet@1.1.6 -->
 # 🚨 CRITICAL: Relay-First Communication Rule
 
