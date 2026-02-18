@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytest-agentcontract"
-version = "0.1.0"
+version = "0.1.1"
 description = "Deterministic CI tests for LLM agent trajectories — record once, replay offline, assert contracts"
 readme = "README.md"
 license = "MIT"
