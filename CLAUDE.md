@@ -3,6 +3,13 @@
 Pytest plugin for deterministic CI tests of LLM agent trajectories.
 Record once, replay offline, assert contracts.
 
+## Quick Start
+- **Do work:** Use `/do-work <task>` skill (see `.claude/skills/do-work.md`)
+- Tests: `.venv/bin/pytest tests/ -x -q`
+- Lint: `.venv/bin/ruff check src/ tests/`
+- Type check: `.venv/bin/mypy src/`
+- Build: `.venv/bin/python -m build`
+
 ## Project Structure
 - `src/agentcontract/` -- main package
   - `recorder/` -- SDK interceptors (OpenAI, Anthropic) + core recorder
@@ -16,20 +23,6 @@ Record once, replay offline, assert contracts.
   - `serialization.py` -- JSON cassette read/write
 - `tests/unit/` -- unit tests (77 total)
 - `examples/customer_support/` -- demo agent + tests
-
-## Commands
-- Tests: `.venv/bin/pytest tests/ -x -q`
-- Lint: `.venv/bin/ruff check src/ tests/`
-- Type check: `.venv/bin/mypy src/`
-- Build: `.venv/bin/python -m build`
-
-## Rules
-- Python 3.10+ compatibility required
-- All public functions need type hints
-- Smallest possible diffs for bug fixes
-- Do NOT move utility functions between modules
-- Do NOT refactor unless explicitly asked
-- Run tests + lint after every change
 
 ## Nightshift Build Contracts
 
