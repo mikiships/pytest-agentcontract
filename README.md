@@ -235,6 +235,10 @@ Your agent's contract is: given this input, it calls these tools in this order w
 2. **Replay**: The replay engine feeds recorded tool results back. No network. No tokens. Deterministic.
 3. **Assert**: The assertion engine checks contracts -- tool sequences, argument schemas, response content, policies.
 
+## See Also
+
+- **[coderace](https://github.com/mikiships/coderace)** -- Race coding agents (Claude Code, Codex, Aider, Gemini CLI) against each other on real tasks in your repo. Automated scoring with tests, lint, time, and lines changed.
+
 ## License
 
 MIT
