@@ -79,6 +79,13 @@ pytest --ac-replay
 # Deterministic. No API keys. No flakes. Sub-second.
 ```
 
+## Documentation
+
+- [Docs Index](docs/README.md)
+- [Pytest Plugin Reference](docs/pytest-plugin.md)
+- [Configuration Reference](docs/configuration.md)
+- [Cassette Format Reference](docs/cassette-format.md)
+
 ## SDK Auto-Recording
 
 Intercept real SDK calls instead of manually building turns:
