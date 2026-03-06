@@ -34,6 +34,7 @@ class ReplayResult:
 
     @property
     def ok(self) -> bool:
+        """Return True when replay completed with no errors or mismatched tool calls."""
         return len(self.errors) == 0 and self.mismatched_tools == 0
 
 
