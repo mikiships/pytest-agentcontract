@@ -57,11 +57,12 @@ def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
     if ac_mode == "record":
         # Runs your real agent, records the trajectory
         run_my_agent(ac_recorder)
+        run = ac_recorder.run
     elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+        # Uses the recorded trajectory -- no network, no tokens
+        run = ac_replay_engine.recorded_run
 
-    contract = ac_check_contract(ac_recorder.run)
+    contract = ac_check_contract(run)
     assert contract.passed, contract.failures()
 ```
 
