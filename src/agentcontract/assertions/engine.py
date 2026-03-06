@@ -31,13 +31,16 @@ class ContractResult:
 
     @property
     def passed(self) -> bool:
+        """Return True when every assertion and policy check passed."""
         return all(r.passed for r in self.results)
 
     @property
     def failed_count(self) -> int:
+        """Return how many assertion and policy checks failed."""
         return sum(1 for r in self.results if not r.passed)
 
     def failures(self) -> list[AssertionResult]:
+        """Return all failed assertion and policy results in evaluation order."""
         return [r for r in self.results if not r.passed]
 
 
