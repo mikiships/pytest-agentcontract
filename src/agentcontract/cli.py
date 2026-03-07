@@ -111,15 +111,6 @@ policies:
   - name: allowed-tools
     type: tool_allowlist
     tools: []  # list your agent's tools here
-
-budgets:
-  per_scenario:
-    max_cost_usd: 0.05
-    max_turns: 15
-
-reporting:
-  github_comment: true
-  artifact_path: "agentci-results/"
 """
     try:
         target.write_text(template)

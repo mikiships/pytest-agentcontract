@@ -55,9 +55,8 @@ defaults:
 
 def test_config_defaults():
     config = AgentContractConfig()
-    assert config.suite_pass_rate == 1.0
     assert config.replay.stub_tools is True
-    assert config.per_scenario_budget.max_turns == 15
+    assert config.replay.concurrency == 5
 
 
 def test_config_from_dict_handles_null_sections():
@@ -68,10 +67,6 @@ def test_config_from_dict_handles_null_sections():
             "defaults": None,
             "overrides": None,
             "policies": None,
-            "thresholds": None,
-            "budgets": None,
-            "reporting": None,
-            "baseline": None,
         }
     )
     assert config.scenario_include == ["tests/scenarios/**/*.agentrun.json"]
@@ -108,39 +103,15 @@ def test_config_from_dict_coerces_scalar_types():
         {
             "version": 2,
             "replay": {
-                "model": 123,
-                "seed": "7",
                 "stub_tools": "false",
                 "concurrency": "4",
             },
-            "thresholds": {"suite_pass_rate": "0.75"},
-            "budgets": {
-                "per_scenario": {
-                    "max_cost_usd": "0.15",
-                    "max_latency_ms": "1200",
-                    "max_turns": "9",
-                },
-                "suite": {"max_cost_usd": "3.5"},
-            },
-            "baseline": {"branch": 9, "show_deltas": "0"},
-            "reporting": {"github_comment": "no", "artifact_path": 42},
         }
     )
 
     assert config.version == "2"
-    assert config.replay.model == "123"
-    assert config.replay.seed == 7
     assert config.replay.stub_tools is False
     assert config.replay.concurrency == 4
-    assert config.suite_pass_rate == 0.75
-    assert config.per_scenario_budget.max_cost_usd == 0.15
-    assert config.per_scenario_budget.max_latency_ms == 1200.0
-    assert config.per_scenario_budget.max_turns == 9
-    assert config.suite_budget_usd == 3.5
-    assert config.baseline_branch == "9"
-    assert config.show_deltas is False
-    assert config.github_comment is False
-    assert config.artifact_path == "42"
 
 
 def test_discover_accepts_file_path_start(tmp_path: Path):
