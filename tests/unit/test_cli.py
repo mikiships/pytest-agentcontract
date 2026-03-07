@@ -14,3 +14,17 @@ def test_info_returns_error_for_invalid_cassette(tmp_path: Path, capsys) -> None
 
     assert exit_code == 1
     assert "failed to read cassette" in captured.err
+
+
+def test_init_writes_minimal_supported_template(tmp_path: Path, capsys, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["init"])
+    captured = capsys.readouterr()
+    content = (tmp_path / "agentcontract.yml").read_text()
+
+    assert exit_code == 0
+    assert "Created agentcontract.yml" in captured.out
+    assert "budgets:" not in content
+    assert "reporting:" not in content
+    assert 'concurrency: 5' in content
