@@ -143,6 +143,30 @@ def test_config_from_dict_coerces_scalar_types():
     assert config.artifact_path == "42"
 
 
+def test_legacy_config_keys_remain_supported() -> None:
+    config = AgentContractConfig.from_dict(
+        {
+            "thresholds": {"suite_pass_rate": 0.5},
+            "budgets": {
+                "per_scenario": {"max_cost_usd": 0.25, "max_latency_ms": 500, "max_turns": 3},
+                "suite": {"max_cost_usd": 1.5},
+            },
+            "baseline": {"branch": "develop", "show_deltas": True},
+            "reporting": {"github_comment": False, "artifact_path": "artifacts/"},
+        }
+    )
+
+    assert config.suite_pass_rate == 0.5
+    assert config.per_scenario_budget.max_cost_usd == 0.25
+    assert config.per_scenario_budget.max_latency_ms == 500.0
+    assert config.per_scenario_budget.max_turns == 3
+    assert config.suite_budget_usd == 1.5
+    assert config.baseline_branch == "develop"
+    assert config.show_deltas is True
+    assert config.github_comment is False
+    assert config.artifact_path == "artifacts/"
+
+
 def test_discover_accepts_file_path_start(tmp_path: Path):
     project_dir = tmp_path / "project"
     nested_dir = project_dir / "pkg"

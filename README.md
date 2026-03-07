@@ -142,6 +142,7 @@ scenarios:
 
 replay:
   stub_tools: true
+  concurrency: 5
 
 defaults:
   assertions:
