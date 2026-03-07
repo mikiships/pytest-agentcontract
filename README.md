@@ -132,7 +132,7 @@ unpatch()
 
 ## Configuration
 
-`agentcontract.yml` in your project root:
+`agentcontract.yml` in your project root. `agentcontract init` writes this minimal starter:
 
 ```yaml
 version: "1"
@@ -142,25 +142,18 @@ scenarios:
 
 replay:
   stub_tools: true
+  concurrency: 5
 
 defaults:
   assertions:
     - type: contains
       target: final_response
-      value: "refund"
-    - type: called_with
-      target: "tool:process_refund"
-      schema:
-        order_id: "123"
+      value: ""  # customize this
 
 policies:
   - name: allowed-tools
     type: tool_allowlist
-    tools: [lookup_order, check_eligibility, process_refund]
-
-  - name: confirm-before-refund
-    type: requires_confirmation
-    tools: [process_refund]
+    tools: []  # list your agent's tools here
 ```
 
 Generate a starter config:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -9,16 +10,52 @@ from typing import Any
 import yaml
 
 
-@dataclass
+@dataclass(init=False)
 class ReplayConfig:
-    model: str = ""
-    seed: int | None = 42
-    stub_tools: bool = True
-    concurrency: int = 5
+    """Replay settings consumed by the runtime."""
+
+    stub_tools: bool
+    concurrency: int
+    _model: str
+    _seed: int | None
+
+    def __init__(
+        self,
+        stub_tools: bool = True,
+        concurrency: int = 5,
+        model: str = "",
+        seed: int | None = 42,
+    ) -> None:
+        self.stub_tools = stub_tools
+        self.concurrency = concurrency
+        self._model = model
+        self._seed = seed
+
+    @property
+    def model(self) -> str:
+        _warn_deprecated_attr("ReplayConfig.model", "replay.model")
+        return self._model
+
+    @model.setter
+    def model(self, value: str) -> None:
+        _warn_deprecated_attr("ReplayConfig.model", "replay.model")
+        self._model = value
+
+    @property
+    def seed(self) -> int | None:
+        _warn_deprecated_attr("ReplayConfig.seed", "replay.seed")
+        return self._seed
+
+    @seed.setter
+    def seed(self, value: int | None) -> None:
+        _warn_deprecated_attr("ReplayConfig.seed", "replay.seed")
+        self._seed = value
 
 
 @dataclass
 class BudgetConfig:
+    """Deprecated budget settings kept for compatibility only."""
+
     max_cost_usd: float = 0.05
     max_latency_ms: float = 10000
     max_turns: int = 15
@@ -58,18 +95,9 @@ class ScenarioOverride:
 
 
 @dataclass
-class AgentContractConfig:
-    """Parsed agentcontract.yml configuration."""
+class _LegacyConfigSurface:
+    """Parsed legacy config that is no longer consumed by the runtime."""
 
-    version: str = "1"
-    scenario_include: list[str] = field(
-        default_factory=lambda: ["tests/scenarios/**/*.agentrun.json"]
-    )
-    scenario_exclude: list[str] = field(default_factory=list)
-    replay: ReplayConfig = field(default_factory=ReplayConfig)
-    default_assertions: list[AssertionSpec] = field(default_factory=list)
-    overrides: dict[str, ScenarioOverride] = field(default_factory=dict)
-    policies: list[PolicySpec] = field(default_factory=list)
     suite_pass_rate: float = 1.0
     per_scenario_budget: BudgetConfig = field(default_factory=BudgetConfig)
     suite_budget_usd: float = 2.0
@@ -77,6 +105,131 @@ class AgentContractConfig:
     show_deltas: bool = True
     github_comment: bool = True
     artifact_path: str = "agentci-results/"
+
+
+@dataclass(init=False)
+class AgentContractConfig:
+    """Parsed agentcontract.yml configuration."""
+
+    version: str
+    scenario_include: list[str]
+    scenario_exclude: list[str]
+    replay: ReplayConfig
+    default_assertions: list[AssertionSpec]
+    overrides: dict[str, ScenarioOverride]
+    policies: list[PolicySpec]
+    _legacy: _LegacyConfigSurface = field(repr=False, compare=False)
+
+    def __init__(
+        self,
+        version: str = "1",
+        scenario_include: list[str] | None = None,
+        scenario_exclude: list[str] | None = None,
+        replay: ReplayConfig | None = None,
+        default_assertions: list[AssertionSpec] | None = None,
+        overrides: dict[str, ScenarioOverride] | None = None,
+        policies: list[PolicySpec] | None = None,
+        *,
+        suite_pass_rate: float = 1.0,
+        per_scenario_budget: BudgetConfig | None = None,
+        suite_budget_usd: float = 2.0,
+        baseline_branch: str = "main",
+        show_deltas: bool = True,
+        github_comment: bool = True,
+        artifact_path: str = "agentci-results/",
+    ) -> None:
+        self.version = version
+        self.scenario_include = list(
+            scenario_include or ["tests/scenarios/**/*.agentrun.json"]
+        )
+        self.scenario_exclude = list(scenario_exclude or [])
+        self.replay = replay or ReplayConfig()
+        self.default_assertions = list(default_assertions or [])
+        self.overrides = dict(overrides or {})
+        self.policies = list(policies or [])
+        self._legacy = _LegacyConfigSurface(
+            suite_pass_rate=suite_pass_rate,
+            per_scenario_budget=per_scenario_budget or BudgetConfig(),
+            suite_budget_usd=suite_budget_usd,
+            baseline_branch=baseline_branch,
+            show_deltas=show_deltas,
+            github_comment=github_comment,
+            artifact_path=artifact_path,
+        )
+
+    @property
+    def suite_pass_rate(self) -> float:
+        _warn_deprecated_attr("AgentContractConfig.suite_pass_rate", "thresholds.suite_pass_rate")
+        return self._legacy.suite_pass_rate
+
+    @suite_pass_rate.setter
+    def suite_pass_rate(self, value: float) -> None:
+        _warn_deprecated_attr("AgentContractConfig.suite_pass_rate", "thresholds.suite_pass_rate")
+        self._legacy.suite_pass_rate = value
+
+    @property
+    def per_scenario_budget(self) -> BudgetConfig:
+        _warn_deprecated_attr(
+            "AgentContractConfig.per_scenario_budget", "budgets.per_scenario"
+        )
+        return self._legacy.per_scenario_budget
+
+    @per_scenario_budget.setter
+    def per_scenario_budget(self, value: BudgetConfig) -> None:
+        _warn_deprecated_attr(
+            "AgentContractConfig.per_scenario_budget", "budgets.per_scenario"
+        )
+        self._legacy.per_scenario_budget = value
+
+    @property
+    def suite_budget_usd(self) -> float:
+        _warn_deprecated_attr("AgentContractConfig.suite_budget_usd", "budgets.suite")
+        return self._legacy.suite_budget_usd
+
+    @suite_budget_usd.setter
+    def suite_budget_usd(self, value: float) -> None:
+        _warn_deprecated_attr("AgentContractConfig.suite_budget_usd", "budgets.suite")
+        self._legacy.suite_budget_usd = value
+
+    @property
+    def baseline_branch(self) -> str:
+        _warn_deprecated_attr("AgentContractConfig.baseline_branch", "baseline.branch")
+        return self._legacy.baseline_branch
+
+    @baseline_branch.setter
+    def baseline_branch(self, value: str) -> None:
+        _warn_deprecated_attr("AgentContractConfig.baseline_branch", "baseline.branch")
+        self._legacy.baseline_branch = value
+
+    @property
+    def show_deltas(self) -> bool:
+        _warn_deprecated_attr("AgentContractConfig.show_deltas", "baseline.show_deltas")
+        return self._legacy.show_deltas
+
+    @show_deltas.setter
+    def show_deltas(self, value: bool) -> None:
+        _warn_deprecated_attr("AgentContractConfig.show_deltas", "baseline.show_deltas")
+        self._legacy.show_deltas = value
+
+    @property
+    def github_comment(self) -> bool:
+        _warn_deprecated_attr("AgentContractConfig.github_comment", "reporting.github_comment")
+        return self._legacy.github_comment
+
+    @github_comment.setter
+    def github_comment(self, value: bool) -> None:
+        _warn_deprecated_attr("AgentContractConfig.github_comment", "reporting.github_comment")
+        self._legacy.github_comment = value
+
+    @property
+    def artifact_path(self) -> str:
+        _warn_deprecated_attr("AgentContractConfig.artifact_path", "reporting.artifact_path")
+        return self._legacy.artifact_path
+
+    @artifact_path.setter
+    def artifact_path(self, value: str) -> None:
+        _warn_deprecated_attr("AgentContractConfig.artifact_path", "reporting.artifact_path")
+        self._legacy.artifact_path = value
 
     @classmethod
     def from_file(cls, path: Path) -> AgentContractConfig:
@@ -98,6 +251,8 @@ class AgentContractConfig:
         reporting = _coerce_dict(raw.get("reporting"))
         baseline = _coerce_dict(raw.get("baseline"))
         thresholds = _coerce_dict(raw.get("thresholds"))
+
+        _warn_for_legacy_sections(raw, replay_raw)
 
         default_assertions = [
             _parse_assertion(a)
@@ -122,7 +277,21 @@ class AgentContractConfig:
             if isinstance(p, dict)
         ]
 
-        return cls(
+        legacy = _LegacyConfigSurface(
+            suite_pass_rate=_coerce_float(thresholds.get("suite_pass_rate"), 1.0),
+            per_scenario_budget=BudgetConfig(
+                max_cost_usd=_coerce_float(per_scenario.get("max_cost_usd"), 0.05),
+                max_latency_ms=_coerce_float(per_scenario.get("max_latency_ms"), 10000),
+                max_turns=_coerce_int(per_scenario.get("max_turns"), 15),
+            ),
+            suite_budget_usd=_coerce_float(suite.get("max_cost_usd"), 2.0),
+            baseline_branch=_coerce_str(baseline.get("branch"), "main"),
+            show_deltas=_coerce_bool(baseline.get("show_deltas"), True),
+            github_comment=_coerce_bool(reporting.get("github_comment"), True),
+            artifact_path=_coerce_str(reporting.get("artifact_path"), "agentci-results/"),
+        )
+
+        config = cls(
             version=_coerce_str(raw.get("version"), "1"),
             scenario_include=_coerce_list(
                 scenarios.get("include"), ["tests/scenarios/**/*.agentrun.json"]
@@ -137,18 +306,9 @@ class AgentContractConfig:
             default_assertions=default_assertions,
             overrides=overrides,
             policies=policies,
-            suite_pass_rate=_coerce_float(thresholds.get("suite_pass_rate"), 1.0),
-            per_scenario_budget=BudgetConfig(
-                max_cost_usd=_coerce_float(per_scenario.get("max_cost_usd"), 0.05),
-                max_latency_ms=_coerce_float(per_scenario.get("max_latency_ms"), 10000),
-                max_turns=_coerce_int(per_scenario.get("max_turns"), 15),
-            ),
-            suite_budget_usd=_coerce_float(suite.get("max_cost_usd"), 2.0),
-            baseline_branch=_coerce_str(baseline.get("branch"), "main"),
-            show_deltas=_coerce_bool(baseline.get("show_deltas"), True),
-            github_comment=_coerce_bool(reporting.get("github_comment"), True),
-            artifact_path=_coerce_str(reporting.get("artifact_path"), "agentci-results/"),
         )
+        config._legacy = legacy
+        return config
 
     @classmethod
     def discover(cls, start: Path | None = None) -> AgentContractConfig:
@@ -160,7 +320,7 @@ class AgentContractConfig:
             candidate = directory / "agentcontract.yml"
             if candidate.exists():
                 return cls.from_file(candidate)
-        return cls()  # defaults
+        return cls()
 
 
 def _parse_assertion(raw: dict[str, Any]) -> AssertionSpec:
@@ -184,6 +344,36 @@ def _parse_policy(raw: dict[str, Any]) -> PolicySpec:
         target=raw.get("target", ""),
         tools=[str(item) for item in _coerce_list(raw.get("tools"), []) if item is not None],
         block=[str(item) for item in _coerce_list(raw.get("block"), []) if item is not None],
+    )
+
+
+def _warn_for_legacy_sections(raw: dict[str, Any], replay_raw: dict[str, Any]) -> None:
+    deprecated_sections = {
+        "thresholds": "thresholds",
+        "budgets": "budgets",
+        "baseline": "baseline",
+        "reporting": "reporting",
+    }
+    seen = [name for key, name in deprecated_sections.items() if _coerce_dict(raw.get(key))]
+    if "model" in replay_raw:
+        seen.append("replay.model")
+    if "seed" in replay_raw:
+        seen.append("replay.seed")
+    if seen:
+        warnings.warn(
+            "Deprecated config keys are still accepted for compatibility but are not used by "
+            f"the runtime: {', '.join(seen)}.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+
+
+def _warn_deprecated_attr(attr: str, config_key: str) -> None:
+    warnings.warn(
+        f"{attr} is deprecated compatibility surface for '{config_key}' "
+        "and is not used by the runtime.",
+        DeprecationWarning,
+        stacklevel=3,
     )
 
 

@@ -1,9 +1,10 @@
 """Tests for config parsing."""
 
+import warnings
 from pathlib import Path
 
 from agentcontract.assertions.engine import AssertionEngine
-from agentcontract.config import AgentContractConfig
+from agentcontract.config import AgentContractConfig, BudgetConfig
 from agentcontract.types import AgentRun, RunMetadata, ToolCall, Turn, TurnRole
 
 
@@ -55,9 +56,34 @@ defaults:
 
 def test_config_defaults():
     config = AgentContractConfig()
-    assert config.suite_pass_rate == 1.0
     assert config.replay.stub_tools is True
-    assert config.per_scenario_budget.max_turns == 15
+    assert config.replay.concurrency == 5
+    assert config.default_assertions == []
+
+
+def test_config_direct_init_accepts_deprecated_kwargs():
+    config = AgentContractConfig(
+        suite_pass_rate=0.8,
+        per_scenario_budget=BudgetConfig(max_turns=9),
+        suite_budget_usd=3.5,
+        baseline_branch="develop",
+        show_deltas=False,
+        github_comment=False,
+        artifact_path="artifacts/",
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert config.suite_pass_rate == 0.8
+        assert config.per_scenario_budget.max_turns == 9
+        assert config.suite_budget_usd == 3.5
+        assert config.baseline_branch == "develop"
+        assert config.show_deltas is False
+        assert config.github_comment is False
+        assert config.artifact_path == "artifacts/"
+
+    assert len(caught) == 7
+    assert all(issubclass(warning.category, DeprecationWarning) for warning in caught)
 
 
 def test_config_from_dict_handles_null_sections():
@@ -104,43 +130,53 @@ def test_config_from_dict_coerces_null_policy_lists():
 
 
 def test_config_from_dict_coerces_scalar_types():
-    config = AgentContractConfig.from_dict(
-        {
-            "version": 2,
-            "replay": {
-                "model": 123,
-                "seed": "7",
-                "stub_tools": "false",
-                "concurrency": "4",
-            },
-            "thresholds": {"suite_pass_rate": "0.75"},
-            "budgets": {
-                "per_scenario": {
-                    "max_cost_usd": "0.15",
-                    "max_latency_ms": "1200",
-                    "max_turns": "9",
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        config = AgentContractConfig.from_dict(
+            {
+                "version": 2,
+                "replay": {
+                    "model": 123,
+                    "seed": "7",
+                    "stub_tools": "false",
+                    "concurrency": "4",
                 },
-                "suite": {"max_cost_usd": "3.5"},
-            },
-            "baseline": {"branch": 9, "show_deltas": "0"},
-            "reporting": {"github_comment": "no", "artifact_path": 42},
-        }
-    )
+                "thresholds": {"suite_pass_rate": "0.75"},
+                "budgets": {
+                    "per_scenario": {
+                        "max_cost_usd": "0.15",
+                        "max_latency_ms": "1200",
+                        "max_turns": "9",
+                    },
+                    "suite": {"max_cost_usd": "3.5"},
+                },
+                "baseline": {"branch": 9, "show_deltas": "0"},
+                "reporting": {"github_comment": "no", "artifact_path": 42},
+            }
+        )
 
     assert config.version == "2"
-    assert config.replay.model == "123"
-    assert config.replay.seed == 7
     assert config.replay.stub_tools is False
     assert config.replay.concurrency == 4
-    assert config.suite_pass_rate == 0.75
-    assert config.per_scenario_budget.max_cost_usd == 0.15
-    assert config.per_scenario_budget.max_latency_ms == 1200.0
-    assert config.per_scenario_budget.max_turns == 9
-    assert config.suite_budget_usd == 3.5
-    assert config.baseline_branch == "9"
-    assert config.show_deltas is False
-    assert config.github_comment is False
-    assert config.artifact_path == "42"
+    assert len(caught) == 1
+    assert "Deprecated config keys are still accepted" in str(caught[0].message)
+
+    with warnings.catch_warnings(record=True) as legacy_caught:
+        warnings.simplefilter("always")
+        assert config.replay.model == "123"
+        assert config.replay.seed == 7
+        assert config.suite_pass_rate == 0.75
+        assert config.per_scenario_budget.max_cost_usd == 0.15
+        assert config.per_scenario_budget.max_latency_ms == 1200.0
+        assert config.per_scenario_budget.max_turns == 9
+        assert config.suite_budget_usd == 3.5
+        assert config.baseline_branch == "9"
+        assert config.show_deltas is False
+        assert config.github_comment is False
+        assert config.artifact_path == "42"
+
+    assert len(legacy_caught) == 11
+    assert all(issubclass(warning.category, DeprecationWarning) for warning in legacy_caught)
 
 
 def test_discover_accepts_file_path_start(tmp_path: Path):
