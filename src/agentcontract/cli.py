@@ -26,6 +26,23 @@ def main(argv: list[str] | None = None) -> int:
     # init command
     subparsers.add_parser("init", help="Create a starter agentcontract.yml")
 
+    # test-gap command
+    test_gap_parser = subparsers.add_parser(
+        "test-gap",
+        help="Report structural unit-test coverage gaps in this repository",
+    )
+    test_gap_parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path.cwd(),
+        help="Repository root to inspect (default: current working directory)",
+    )
+    test_gap_parser.add_argument(
+        "--fail-on-gaps",
+        action="store_true",
+        help="Exit non-zero when missing or weak coverage signals are found",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "info":
@@ -34,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_validate(args.path)
     elif args.command == "init":
         return _cmd_init()
+    elif args.command == "test-gap":
+        return _cmd_test_gap(args.root, fail_on_gaps=args.fail_on_gaps)
     else:
         parser.print_help()
         return 0
@@ -127,6 +146,25 @@ reporting:
         print(f"Error: failed to write {target}: {e}", file=sys.stderr)
         return 1
     print(f"Created {target}")
+    return 0
+
+
+def _cmd_test_gap(root: Path, *, fail_on_gaps: bool) -> int:
+    """Inspect structural unit-test coverage gaps for the repository."""
+    from agentcontract.test_gap import find_test_gaps, format_test_gap_report
+
+    try:
+        report = find_test_gaps(root)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except OSError as e:
+        print(f"Error: failed to inspect test layout ({type(e).__name__}): {e}", file=sys.stderr)
+        return 1
+
+    print(format_test_gap_report(report))
+    if fail_on_gaps and report.has_gaps:
+        return 1
     return 0
 
 

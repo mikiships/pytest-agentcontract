@@ -201,7 +201,18 @@ agentcontract init
 agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
 agentcontract init                               # Starter config
+agentcontract test-gap                           # Structural unit-test gap scan
 ```
+
+`agentcontract test-gap` statically compares Python modules under `src/agentcontract` with the unit-test layout under `tests/unit` and reports missing or weak coverage hotspots such as CLI and pytest plugin entry points.
+
+Use `--fail-on-gaps` in CI if you want structural gaps to fail the command:
+
+```bash
+agentcontract test-gap --fail-on-gaps
+```
+
+Current v1 limitation: this is a repo-native structural check, not true line or branch coverage. It does not require `pytest-cov`.
 
 ## Why Not VCR / pytest-recording?
 
