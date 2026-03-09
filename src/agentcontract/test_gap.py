@@ -10,6 +10,10 @@ PACKAGE_DIR = Path("src/agentcontract")
 TESTS_DIR = Path("tests/unit")
 HOTSPOT_MODULES = {"cli", "plugin"}
 CLI_COMMAND_PATTERN = re.compile(r'add_parser\("([^"]+)"')
+CLI_TEST_HIT_PATTERN = re.compile(
+    r"""\bmain\(\s*[\[(]\s*["']([^"']+)["']""",
+    re.MULTILINE,
+)
 
 
 @dataclass(frozen=True)
@@ -217,6 +221,8 @@ def _hotspot_notes(
     matched_tests: tuple[Path, ...],
 ) -> list[str]:
     if module_key == "plugin":
+        if _has_dedicated_test_match(module_key, tests_dir, matched_tests):
+            return []
         return ["pytest plugin entry points do not have a matching unit test file"]
 
     if module_key != "cli":
@@ -267,9 +273,15 @@ def _covered_cli_commands(matched_tests: tuple[Path, ...]) -> set[str]:
     covered: set[str] = set()
     for test_path in matched_tests:
         contents = test_path.read_text()
-        for command in CLI_COMMAND_PATTERN.findall(contents):
+        for command in CLI_TEST_HIT_PATTERN.findall(contents):
             covered.add(command)
-        for command in ("info", "validate", "init", "test-gap"):
-            if f'"{command}"' in contents or f"'{command}'" in contents:
-                covered.add(command)
     return covered
+
+
+def _has_dedicated_test_match(
+    module_key: str,
+    tests_dir: Path,
+    matched_tests: tuple[Path, ...],
+) -> bool:
+    expected_name = Path(f"test_{module_key}.py")
+    return any(path.relative_to(tests_dir) == expected_name for path in matched_tests)

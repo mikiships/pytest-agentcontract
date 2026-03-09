@@ -69,7 +69,12 @@ def test_find_test_gaps_flags_shared_package_tests_and_hotspots(tmp_path: Path) 
         "def pytest_addoption() -> None:\n    return None\n",
     )
     _write(repo / "tests/unit/test_adapters.py", "def test_adapters() -> None:\n    assert True\n")
-    _write(repo / "tests/unit/test_cli.py", 'def test_cli() -> None:\n    assert ["info"]\n')
+    _write(
+        repo / "tests/unit/test_cli.py",
+        'from agentcontract.cli import main\n\n'
+        'def test_cli() -> None:\n'
+        '    assert main(["info", "cassette.agentrun.json"]) == 0\n',
+    )
 
     report = find_test_gaps(repo)
 
@@ -79,6 +84,50 @@ def test_find_test_gaps_flags_shared_package_tests_and_hotspots(tmp_path: Path) 
     assert "agentcontract.adapters.openai_agents" in weak_notes
     assert weak_notes["agentcontract.cli"] == (
         "CLI subcommands without explicit test hits: init, test-gap, validate",
+    )
+
+
+def test_find_test_gaps_does_not_flag_plugin_with_dedicated_test_file(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    _write(
+        repo / "src/agentcontract/plugin.py",
+        "def pytest_addoption() -> None:\n    return None\n",
+    )
+    _write(repo / "tests/unit/test_plugin.py", "def test_plugin() -> None:\n    assert True\n")
+
+    report = find_test_gaps(repo)
+
+    assert report.missing == ()
+    assert all(gap.module_name != "agentcontract.plugin" for gap in report.weak)
+
+
+def test_find_test_gaps_requires_explicit_cli_invocation_hits(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path)
+    _write(
+        repo / "src/agentcontract/cli.py",
+        '\n'.join(
+            [
+                'subparsers.add_parser("info")',
+                'subparsers.add_parser("validate")',
+                'subparsers.add_parser("init")',
+                'subparsers.add_parser("test-gap")',
+                "",
+            ]
+        ),
+    )
+    _write(
+        repo / "tests/unit/test_cli.py",
+        'from agentcontract.cli import main\n\n'
+        'def test_cli_notes() -> None:\n'
+        '    note = "info"\n'
+        '    assert note == "info"\n',
+    )
+
+    report = find_test_gaps(repo)
+
+    weak_notes = {gap.module_name: gap.notes for gap in report.weak}
+    assert weak_notes["agentcontract.cli"] == (
+        "CLI subcommands without explicit test hits: info, init, test-gap, validate",
     )
 
 
