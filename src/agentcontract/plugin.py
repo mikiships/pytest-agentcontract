@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any
@@ -55,6 +57,39 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
+def _get_scenario_name(request: pytest.FixtureRequest) -> str:
+    """Resolve the scenario name from markers or fall back to the test node name."""
+    marker = request.node.get_closest_marker("agentcontract") or request.node.get_closest_marker(
+        "agent_scenario"
+    )
+    if marker and marker.args:
+        return str(marker.args[0])
+    if marker and marker.kwargs.get("name"):
+        return str(marker.kwargs["name"])
+    return str(request.node.name)
+
+
+def _scenario_filename(scenario: str) -> str:
+    """Map a scenario name to a stable filename-safe cassette stem."""
+    normalized = str(scenario).strip()
+    safe_stem = re.sub(r"[^A-Za-z0-9._-]+", "-", normalized).strip("-.")
+
+    if safe_stem and safe_stem == normalized and "/" not in normalized and "\\" not in normalized:
+        return safe_stem
+
+    if not safe_stem:
+        safe_stem = "scenario"
+
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:10]
+    return f"{safe_stem}-{digest}"
+
+
+def _cassette_path(scenarios_dir: str | Path, scenario: str) -> Path:
+    """Build the cassette path without letting scenario names control directories."""
+    base_dir = Path(scenarios_dir)
+    return base_dir / f"{_scenario_filename(scenario)}.agentrun.json"
+
+
 @pytest.fixture
 def ac_config(request: pytest.FixtureRequest) -> AgentContractConfig:
     """Provide the parsed agentcontract configuration."""
@@ -80,16 +115,7 @@ def ac_recorder(request: pytest.FixtureRequest) -> Generator[Recorder, None, Non
 
     The cassette is saved to tests/scenarios/<scenario>.agentrun.json.
     """
-    marker = request.node.get_closest_marker("agentcontract") or request.node.get_closest_marker(
-        "agent_scenario"
-    )
-    scenario = ""
-    if marker and marker.args:
-        scenario = marker.args[0]
-    elif marker and marker.kwargs.get("name"):
-        scenario = marker.kwargs["name"]
-    else:
-        scenario = request.node.name
+    scenario = _get_scenario_name(request)
 
     recorder = Recorder(scenario=scenario)
 
@@ -99,7 +125,7 @@ def ac_recorder(request: pytest.FixtureRequest) -> Generator[Recorder, None, Non
     # Auto-save if in record mode
     if request.config.getoption("--ac-record"):
         scenarios_dir = request.config.getoption("--ac-scenarios") or "tests/scenarios"
-        path = Path(scenarios_dir) / f"{scenario}.agentrun.json"
+        path = _cassette_path(scenarios_dir, scenario)
         try:
             recorder.save(path)
         except (OSError, ValueError, TypeError) as e:
@@ -119,19 +145,10 @@ def ac_replay_engine(
     if not request.config.getoption("--ac-replay"):
         return None
 
-    marker = request.node.get_closest_marker("agentcontract") or request.node.get_closest_marker(
-        "agent_scenario"
-    )
-    scenario = ""
-    if marker and marker.args:
-        scenario = marker.args[0]
-    elif marker and marker.kwargs.get("name"):
-        scenario = marker.kwargs["name"]
-    else:
-        scenario = request.node.name
+    scenario = _get_scenario_name(request)
 
     scenarios_dir = request.config.getoption("--ac-scenarios") or "tests/scenarios"
-    cassette_path = Path(scenarios_dir) / f"{scenario}.agentrun.json"
+    cassette_path = _cassette_path(scenarios_dir, scenario)
 
     if not cassette_path.exists():
         pytest.skip(f"No cassette found at {cassette_path}")
