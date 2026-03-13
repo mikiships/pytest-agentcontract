@@ -200,7 +200,29 @@ agentcontract init
 ```bash
 agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
+agentcontract scan-pii cassette.agentrun.json   # Likely PII in recorded turns/tool payloads
 agentcontract init                               # Starter config
+```
+
+`scan-pii` is a first-pass cassette safety check. It loads an existing `.agentrun.json`
+through the normal serialization path and scans recorded turn content, tool arguments,
+and tool results for likely email addresses, phone numbers, SSN-like values, and
+payment-card-like numbers that pass a Luhn check. It is intentionally narrow: this is
+not a general repository secret scanner.
+
+Exit codes:
+
+- `0` no findings
+- `2` one or more potential PII findings
+- `1` file read or cassette validation error
+
+Example:
+
+```text
+$ agentcontract scan-pii tests/scenarios/refund-eligible.agentrun.json
+Potential PII findings: 1
+  email: 1
+- turn 1 assistant tool:lookup_order tool_calls[0].result.customer [email high/high] a****@e******.com
 ```
 
 ## Why Not VCR / pytest-recording?
