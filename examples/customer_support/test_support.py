@@ -2,10 +2,12 @@
 
 Run these tests:
     # Record trajectories (creates cassettes)
-    pytest examples/customer_support/test_support.py --ac-record -v
+    pytest examples/customer_support/test_support.py --ac-record \
+        --ac-scenarios examples/customer_support/scenarios -v
 
     # Replay from cassettes (deterministic, no external calls)
-    pytest examples/customer_support/test_support.py --ac-replay -v
+    pytest examples/customer_support/test_support.py --ac-replay \
+        --ac-scenarios examples/customer_support/scenarios -v
 
     # Run with contract assertions
     pytest examples/customer_support/test_support.py -v

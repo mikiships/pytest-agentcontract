@@ -54,15 +54,15 @@ Framework adapters (LangGraph, LlamaIndex, OpenAI Agents SDK) are included -- no
 ```python
 @pytest.mark.agentcontract("refund-eligible")
 def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
-    if ac_mode == "record":
-        # Runs your real agent, records the trajectory
+    if ac_mode == "replay" and ac_replay_engine is not None:
+        run = ac_replay_engine.recorded_run
+    else:
+        # Run your agent and add turns to the recorder
         run_my_agent(ac_recorder)
-    elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
-    assert contract.passed, contract.failures()
+    contract = ac_check_contract(run)
+    assert contract.passed, [failure.message for failure in contract.failures()]
 ```
 
 ### 2. Record once
@@ -78,6 +78,11 @@ pytest --ac-record -k test_refund_flow
 pytest --ac-replay
 # Deterministic. No API keys. No flakes. Sub-second.
 ```
+
+## Documentation
+
+- [Configuration reference](docs/configuration.md) -- accepted `agentcontract.yml` keys, defaults, and which ones the built-in plugin consumes today.
+- [Pytest plugin reference](docs/pytest-plugin.md) -- markers, fixtures, CLI flags, cassette paths, and record/replay usage.
 
 ## SDK Auto-Recording
 
@@ -132,68 +137,13 @@ unpatch()
 
 ## Configuration
 
-`agentcontract.yml` in your project root:
-
-```yaml
-version: "1"
-
-scenarios:
-  include: ["tests/scenarios/**/*.agentrun.json"]
-
-replay:
-  stub_tools: true
-
-defaults:
-  assertions:
-    - type: contains
-      target: final_response
-      value: "refund"
-    - type: called_with
-      target: "tool:process_refund"
-      schema:
-        order_id: "123"
-
-policies:
-  - name: allowed-tools
-    type: tool_allowlist
-    tools: [lookup_order, check_eligibility, process_refund]
-
-  - name: confirm-before-refund
-    type: requires_confirmation
-    tools: [process_refund]
-```
-
 Generate a starter config:
+
 ```bash
 agentcontract init
 ```
 
-## Assertions
-
-| Type | What It Checks |
-|------|---------------|
-| `exact` | Exact string match |
-| `contains` | Substring present |
-| `regex` | Pattern match |
-| `json_schema` | JSON Schema validation on tool args/results |
-| `not_called` | Tool was NOT invoked |
-| `called_with` | Tool called with specific arguments |
-| `called_count` | Exact invocation count |
-
-## Policies
-
-| Policy | What It Enforces |
-|--------|-----------------|
-| `tool_allowlist` | Only listed tools may be called |
-| `requires_confirmation` | Protected tools must follow user confirmation |
-
-## Target Syntax
-
-- `final_response` -- last assistant message
-- `turn:N` -- specific turn by index
-- `full_conversation` -- all turns concatenated
-- `tool_call:function_name:arguments` -- tool call arguments
-- `tool_call:function_name:result` -- tool call result
+For the full `agentcontract.yml` surface, supported assertion and policy types, and the exact defaults shipped in the parser, see [Configuration reference](docs/configuration.md).
 
 ## CLI
 
