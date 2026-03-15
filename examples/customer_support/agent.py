@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # Simulated tools (in a real app these would hit databases/APIs)
 ORDERS_DB = {
     "ORD-123": {
@@ -64,7 +63,9 @@ def process_refund(order_id: str, amount: float, method: str = "original") -> di
 
 
 # The "agent" -- a simple state machine that calls tools
-def run_support_agent(user_message: str, tools: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+def run_support_agent(
+    user_message: str, tools: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
     """Run a simple support agent that handles refund requests.
 
     Returns a list of turns (messages + tool calls) for recording.
@@ -142,9 +143,13 @@ def run_support_agent(user_message: str, tools: dict[str, Any] | None = None) ->
     # Turn 4: Process refund
     amount = eligibility["amount"]
     refund = tools["process_refund"](order_id, amount)
+    refund_message = (
+        f"Your refund of ${amount:.2f} has been processed. "
+        f"Refund ID: {refund['refund_id']}"
+    )
     turns.append({
         "role": "assistant",
-        "content": f"Your refund of ${amount:.2f} has been processed. Refund ID: {refund['refund_id']}",
+        "content": refund_message,
         "tool_calls": [{
             "id": "tc_refund",
             "function": "process_refund",
