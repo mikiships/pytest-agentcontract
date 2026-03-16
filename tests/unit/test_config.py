@@ -55,9 +55,10 @@ defaults:
 
 def test_config_defaults():
     config = AgentContractConfig()
-    assert config.suite_pass_rate == 1.0
+    assert config.scenario_include == ["tests/scenarios/**/*.agentrun.json"]
     assert config.replay.stub_tools is True
-    assert config.per_scenario_budget.max_turns == 15
+    assert config.default_assertions == []
+    assert config.policies == []
 
 
 def test_config_from_dict_handles_null_sections():
@@ -75,7 +76,6 @@ def test_config_from_dict_handles_null_sections():
         }
     )
     assert config.scenario_include == ["tests/scenarios/**/*.agentrun.json"]
-    assert config.scenario_exclude == []
     assert config.default_assertions == []
     assert config.overrides == {}
     assert config.policies == []
@@ -113,6 +113,20 @@ def test_config_from_dict_coerces_scalar_types():
                 "stub_tools": "false",
                 "concurrency": "4",
             },
+        }
+    )
+
+    assert config.version == "2"
+    assert config.replay.model == "123"
+    assert config.replay.seed == 7
+    assert config.replay.stub_tools is False
+    assert config.replay.concurrency == 4
+
+
+def test_config_from_dict_ignores_removed_legacy_fields():
+    config = AgentContractConfig.from_dict(
+        {
+            "scenarios": {"exclude": ["tests/scenarios/legacy.agentrun.json"]},
             "thresholds": {"suite_pass_rate": "0.75"},
             "budgets": {
                 "per_scenario": {
@@ -127,20 +141,15 @@ def test_config_from_dict_coerces_scalar_types():
         }
     )
 
-    assert config.version == "2"
-    assert config.replay.model == "123"
-    assert config.replay.seed == 7
-    assert config.replay.stub_tools is False
-    assert config.replay.concurrency == 4
-    assert config.suite_pass_rate == 0.75
-    assert config.per_scenario_budget.max_cost_usd == 0.15
-    assert config.per_scenario_budget.max_latency_ms == 1200.0
-    assert config.per_scenario_budget.max_turns == 9
-    assert config.suite_budget_usd == 3.5
-    assert config.baseline_branch == "9"
-    assert config.show_deltas is False
-    assert config.github_comment is False
-    assert config.artifact_path == "42"
+    assert config.scenario_include == ["tests/scenarios/**/*.agentrun.json"]
+    assert not hasattr(config, "scenario_exclude")
+    assert not hasattr(config, "suite_pass_rate")
+    assert not hasattr(config, "per_scenario_budget")
+    assert not hasattr(config, "suite_budget_usd")
+    assert not hasattr(config, "baseline_branch")
+    assert not hasattr(config, "show_deltas")
+    assert not hasattr(config, "github_comment")
+    assert not hasattr(config, "artifact_path")
 
 
 def test_discover_accepts_file_path_start(tmp_path: Path):
