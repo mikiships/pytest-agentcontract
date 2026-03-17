@@ -1,10 +1,31 @@
 """Tests for config parsing."""
 
+import importlib
 from pathlib import Path
 
 from agentcontract.assertions.engine import AssertionEngine
-from agentcontract.config import AgentContractConfig
+from agentcontract.config import (
+    AgentContractConfig,
+    _coerce_bool,
+    _coerce_dict,
+    _coerce_float,
+    _coerce_int,
+    _coerce_list,
+    _coerce_optional_int,
+    _coerce_str,
+    _parse_assertion,
+    _parse_policy,
+)
 from agentcontract.types import AgentRun, RunMetadata, ToolCall, Turn, TurnRole
+
+
+def test_config_module_reloads_cleanly():
+    import agentcontract.config as config_module
+
+    reloaded = importlib.reload(config_module)
+
+    assert reloaded.AgentContractConfig is not None
+    assert reloaded.ReplayConfig().stub_tools is True
 
 
 def test_config_from_dict():
@@ -156,3 +177,80 @@ def test_discover_accepts_file_path_start(tmp_path: Path):
     config = AgentContractConfig.discover(start=module_file)
 
     assert config.version == "2"
+
+
+def test_discover_returns_defaults_when_config_is_missing(tmp_path: Path):
+    nested_dir = tmp_path / "project" / "pkg"
+    nested_dir.mkdir(parents=True)
+
+    config = AgentContractConfig.discover(start=nested_dir)
+
+    assert config == AgentContractConfig()
+
+
+def test_parse_assertion_preserves_optional_fields():
+    assertion = _parse_assertion(
+        {
+            "type": "llm_judge",
+            "target": "final_response",
+            "value": "approved",
+            "threshold": 0.8,
+            "prompt": "Judge this response",
+            "schema": {"type": "string"},
+            "judge_model": "gpt-4.1-mini",
+            "tools": ["lookup_order"],
+            "block": ["delete_account"],
+        }
+    )
+
+    assert assertion.type == "llm_judge"
+    assert assertion.threshold == 0.8
+    assert assertion.prompt == "Judge this response"
+    assert assertion.schema == {"type": "string"}
+    assert assertion.judge_model == "gpt-4.1-mini"
+    assert assertion.tools == ["lookup_order"]
+    assert assertion.block == ["delete_account"]
+
+
+def test_parse_policy_coerces_tool_and_block_entries_to_strings():
+    policy = _parse_policy(
+        {
+            "name": "tools",
+            "type": "tool_allowlist",
+            "target": "tool_calls",
+            "tools": ["lookup_order", 7, None],
+            "block": ["delete_account", 9, None],
+        }
+    )
+
+    assert policy.target == "tool_calls"
+    assert policy.tools == ["lookup_order", "7"]
+    assert policy.block == ["delete_account", "9"]
+
+
+def test_config_scalar_helpers_cover_edge_cases():
+    defaults = ["tests/scenarios/**/*.agentrun.json"]
+    copied = _coerce_list("not-a-list", defaults)
+    copied.append("extra")
+
+    assert _coerce_dict({"ok": True}) == {"ok": True}
+    assert _coerce_dict(["bad"]) == {}
+    assert defaults == ["tests/scenarios/**/*.agentrun.json"]
+    assert _coerce_str(None, "fallback") == "fallback"
+    assert _coerce_str(7) == "7"
+    assert _coerce_bool(True, False) is True
+    assert _coerce_bool(2, False) is True
+    assert _coerce_bool(" yes ", False) is True
+    assert _coerce_bool("off", True) is False
+    assert _coerce_bool("maybe", True) is True
+    assert _coerce_int(True, 9) == 9
+    assert _coerce_int(3.5, 9) == 9
+    assert _coerce_int("bad", 9) == 9
+    assert _coerce_int("7", 9) == 7
+    assert _coerce_optional_int(True, None) is None
+    assert _coerce_optional_int(1.25, 8) == 8
+    assert _coerce_optional_int("bad", 8) == 8
+    assert _coerce_optional_int("11", None) == 11
+    assert _coerce_float(True, 1.5) == 1.5
+    assert _coerce_float("bad", 1.5) == 1.5
+    assert _coerce_float("2.5", 1.5) == 2.5
