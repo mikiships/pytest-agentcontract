@@ -365,8 +365,7 @@ class AssertionEngine:
                             assertion=spec,
                             passed=False,
                             message=(
-                                f"Tool '{tc.function}' called at turn 0 "
-                                f"with no prior confirmation"
+                                f"Tool '{tc.function}' called at turn 0 with no prior confirmation"
                             ),
                         )
                     prev = run.turns[i - 1]
