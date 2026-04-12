@@ -30,31 +30,17 @@ Use vision models to self-review screenshots against design intent. Catch spacin
 
 Use one of these methods to get a screenshot:
 
-**Via browser tool:**
-```
-browser: screenshot (captures the current page)
-```
+**Live app/page:** Use the available Playwright/browser automation flow to capture a screenshot from the running UI.
 
-**Via node screen capture (if available):**
-```
-nodes: screen_record
-```
+**Local file:** Use `view_image` with the absolute path to inspect an existing screenshot on disk.
 
-**Via Peekaboo (macOS):**
-```
-exec: peekaboo screenshot
-```
+**`js_repl` capture:** If you take the screenshot inside `js_repl`, emit it with `codex.emitImage(...)` so it can be reviewed outside the REPL.
 
-**User-provided:** The user may paste/attach a screenshot directly.
+**User-provided:** The user may paste or attach a screenshot directly.
 
 ### Step 2: Analyze with Vision
 
-Use the `image` tool to analyze the screenshot:
-
-```
-image: [path or URL to screenshot]
-prompt: "Review this UI screenshot for design quality..."
-```
+Open the screenshot with `view_image` or inspect the attached/emitted image directly, then critique it in text. There is no separate `image` tool in this environment.
 
 ### Step 3: Structured Review
 
@@ -226,9 +212,9 @@ Looks good: [What's working]
 
 ---
 
-## Review Prompts for Vision Model
+## Review Prompts
 
-Use these prompts with the `image` tool depending on what you need:
+Use prompts like these while reviewing the screenshot:
 
 ### General Review
 ```
@@ -302,8 +288,8 @@ meaning), and text readability at the shown sizes.
 ### Example 1: "Review this landing page screenshot"
 
 ```
-image: [screenshot path]
-prompt: "Review this landing page for design quality. Check spacing
+Open the screenshot, then review it with this prompt:
+"Review this landing page for design quality. Check spacing
 consistency, typography hierarchy, visual hierarchy (where does the eye
 go first?), CTA prominence, color contrast, and overall polish. Be
 specific about issues and suggest fixes. Rate 1-10."
@@ -312,8 +298,8 @@ specific about issues and suggest fixes. Rate 1-10."
 ### Example 2: "Does my implementation match this Figma design?"
 
 ```
-image: [mockup.png, implementation.png]
-prompt: "Compare these two images. First is the Figma mockup, second
+Open both images, then use this comparison prompt:
+"Compare these two images. First is the Figma mockup, second
 is the implementation. Identify every deviation in spacing, color,
 typography, alignment, and missing elements. Rate fidelity 1-10."
 ```
@@ -321,8 +307,8 @@ typography, alignment, and missing elements. Rate fidelity 1-10."
 ### Example 3: "Check if this component looks good on mobile"
 
 ```
-image: [mobile-screenshot.png]
-prompt: "Review this mobile UI. Is text readable? Are touch targets
+Open the mobile screenshot, then review it with this prompt:
+"Review this mobile UI. Is text readable? Are touch targets
 large enough (≥44px)? Does anything overflow? Is the layout well-adapted
 to mobile width? Check contrast and spacing."
 ```
