@@ -13,7 +13,7 @@
   <img src="docs/demo.gif" alt="pytest-agentcontract demo: record, replay, assert" width="600">
 </p>
 
-Your agent calls `lookup_order`, then `check_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
+Your agent calls `lookup_order`, then `check_refund_eligibility`, asks for confirmation, then `process_refund`. Every time. That's the contract. Test it like any other interface.
 
 ```bash
 # Record a trajectory (hits real APIs once)
@@ -25,11 +25,11 @@ pytest --ac-replay
 
 ```
 tests/scenarios/refund-eligible.agentrun.json
-├── turn 0: user → "I want a refund for order 123"
-├── turn 1: assistant → lookup_order(order_id="123")
-├── turn 2: assistant → check_eligibility(order_id="123")
-├── turn 3: assistant → process_refund(order_id="123", amount=49.99)
-└── turn 4: assistant → "Your refund of $49.99 has been processed."
+├── turn 0: user → "I'd like a refund for order ORD-123 please"
+├── turn 1: assistant → lookup_order(order_id="ORD-123")
+├── turn 2: assistant → check_refund_eligibility(order_id="ORD-123")
+├── turn 3: user → "Yes, please process the refund."
+└── turn 4: assistant → process_refund(order_id="ORD-123", amount=79.99, method="original")
 ```
 
 ## Install
@@ -54,15 +54,20 @@ Framework adapters (LangGraph, LlamaIndex, OpenAI Agents SDK) are included -- no
 ```python
 @pytest.mark.agentcontract("refund-eligible")
 def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
-    if ac_mode == "record":
-        # Runs your real agent, records the trajectory
-        run_my_agent(ac_recorder)
-    elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+    if ac_mode == "replay" and ac_replay_engine is not None:
+        run = ac_replay_engine.recorded_run
+    else:
+        turns = run_my_agent("I'd like a refund for order ORD-123 please")
+        for turn in turns:
+            ac_recorder.add_turn(
+                role=turn["role"],
+                content=turn.get("content"),
+                tool_calls=turn.get("tool_calls"),
+            )
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
-    assert contract.passed, contract.failures()
+    result = ac_check_contract(run)
+    assert result.passed, result.failures()
 ```
 
 ### 2. Record once
@@ -76,8 +81,17 @@ pytest --ac-record -k test_refund_flow
 
 ```bash
 pytest --ac-replay
-# Deterministic. No API keys. No flakes. Sub-second.
+# Loads the matching cassette into ac_replay_engine.
 ```
+
+If you want to execute your agent loop during replay, pass `ac_replay_engine.tool_stub` into your tool layer and compare the resulting turns with `ac_replay_engine.finish(actual_turns)`.
+
+## Documentation
+
+- [Docs index](docs/index.md)
+- [Pytest plugin reference](docs/pytest-plugin.md)
+- [Configuration reference](docs/configuration.md)
+- [Cassette format and CLI reference](docs/cassette-format.md)
 
 ## SDK Auto-Recording
 
@@ -156,7 +170,7 @@ defaults:
 policies:
   - name: allowed-tools
     type: tool_allowlist
-    tools: [lookup_order, check_eligibility, process_refund]
+    tools: [lookup_order, check_refund_eligibility, process_refund]
 
   - name: confirm-before-refund
     type: requires_confirmation
@@ -232,7 +246,7 @@ Your agent's contract is: given this input, it calls these tools in this order w
 ```
 
 1. **Record**: Run your agent against real APIs. The recorder captures every turn, tool call, argument, and result into a `.agentrun.json` cassette.
-2. **Replay**: The replay engine feeds recorded tool results back. No network. No tokens. Deterministic.
+2. **Replay**: The replay engine loads the recorded run, exposes `tool_stub` for offline tool replay, and compares actual turns with `finish(...)`. No network. No tokens. Deterministic.
 3. **Assert**: The assertion engine checks contracts -- tool sequences, argument schemas, response content, policies.
 
 ## See Also
