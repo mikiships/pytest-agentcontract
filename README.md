@@ -201,6 +201,14 @@ agentcontract init
 agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
 agentcontract init                               # Starter config
+agentcontract gaps                               # Rank low-coverage modules
+```
+
+For maintainers, the gap finder works from local `coverage.py` data and highlights modules with uncovered lines plus missing or grouped companion tests. In this repository it should call out hotspots such as `plugin.py`, `types.py`, `adapters/openai_agents.py`, `cli.py`, and `config.py` when they are weakly exercised.
+
+```bash
+uv run coverage run -m pytest
+uv run agentcontract gaps
 ```
 
 ## Why Not VCR / pytest-recording?
