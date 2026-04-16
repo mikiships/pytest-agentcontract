@@ -201,7 +201,29 @@ agentcontract init
 agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
 agentcontract init                               # Starter config
+agentcontract gaps                               # Rank under-tested modules from .coverage
+agentcontract gaps --limit 15                    # Show a deeper hotspot list
 ```
+
+### Maintainer Coverage Workflow
+
+Generate fresh coverage data, then ask the gap finder to rank the weakest areas in the current checkout:
+
+```bash
+uv sync --extra dev
+uv run pytest --cov=src/agentcontract --cov-report=term-missing
+uv run agentcontract gaps
+```
+
+You can point the report at alternate trees when needed:
+
+```bash
+uv run agentcontract gaps --coverage-file .coverage --source-root src/agentcontract --test-root tests
+```
+
+In this repository, the report should currently surface hotspots around `agentcontract.plugin`,
+`agentcontract.types`, `agentcontract.adapters.openai_agents`, `agentcontract.cli`, and
+`agentcontract.config` until their coverage improves.
 
 ## Why Not VCR / pytest-recording?
 

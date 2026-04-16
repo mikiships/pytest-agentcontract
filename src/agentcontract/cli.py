@@ -7,6 +7,13 @@ import sys
 from pathlib import Path
 
 
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -26,6 +33,36 @@ def main(argv: list[str] | None = None) -> int:
     # init command
     subparsers.add_parser("init", help="Create a starter agentcontract.yml")
 
+    # gaps command
+    gaps_parser = subparsers.add_parser(
+        "gaps",
+        help="Report weakly tested modules from local coverage data",
+    )
+    gaps_parser.add_argument(
+        "--coverage-file",
+        type=Path,
+        default=Path(".coverage"),
+        help="Path to a coverage.py data file (default: .coverage)",
+    )
+    gaps_parser.add_argument(
+        "--source-root",
+        type=Path,
+        default=Path("src/agentcontract"),
+        help="Source tree to inspect (default: src/agentcontract)",
+    )
+    gaps_parser.add_argument(
+        "--test-root",
+        type=Path,
+        default=Path("tests"),
+        help="Test tree used for companion-test matching (default: tests)",
+    )
+    gaps_parser.add_argument(
+        "--limit",
+        type=_positive_int,
+        default=10,
+        help="Maximum modules to show (default: 10)",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "info":
@@ -34,6 +71,13 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_validate(args.path)
     elif args.command == "init":
         return _cmd_init()
+    elif args.command == "gaps":
+        return _cmd_gaps(
+            coverage_file=args.coverage_file,
+            source_root=args.source_root,
+            test_root=args.test_root,
+            limit=args.limit,
+        )
     else:
         parser.print_help()
         return 0
@@ -128,6 +172,70 @@ reporting:
         return 1
     print(f"Created {target}")
     return 0
+
+
+def _cmd_gaps(coverage_file: Path, source_root: Path, test_root: Path, limit: int) -> int:
+    """Print a ranked coverage gap report for source modules."""
+    from agentcontract.test_gap import CoverageDataError, analyze_test_gaps
+
+    try:
+        report = analyze_test_gaps(
+            coverage_file=coverage_file,
+            source_root=source_root,
+            test_root=test_root,
+        )
+    except CoverageDataError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    display_count = min(limit, report.module_count)
+    print(f"Coverage gaps from {_display_path(report.coverage_file)}")
+    print(f"Source root: {_display_path(report.source_root)}")
+    print(f"Test root:   {_display_path(report.test_root)}")
+
+    if report.analyzed_module_count == 0:
+        print("\nNo Python modules found under the requested source root.")
+        return 0
+
+    if display_count == 0:
+        print(f"\nNo coverage gaps found across {report.analyzed_module_count} modules.")
+        return 0
+
+    print(f"\nTop {display_count} modules by uncovered lines:")
+    print(f"{'Module':<40} {'Cov':>6} {'Miss':>6}  Tests")
+    for module in report.modules[:display_count]:
+        tests = (
+            ", ".join(_display_path(test_path).name for test_path in module.obvious_test_paths)
+            if module.has_obvious_tests
+            else "none"
+        )
+        print(
+            f"{module.module_name:<40} {module.coverage_percent:>5.1f}% "
+            f"{module.missing_line_count:>6}  {tests}"
+        )
+
+    without_tests = report.modules_without_obvious_tests
+    if without_tests:
+        names = ", ".join(module.module_name for module in without_tests[:5])
+        suffix = " ..." if len(without_tests) > 5 else ""
+        print(f"\nNo obvious companion tests: {names}{suffix}")
+
+    print(
+        "\nSummary: "
+        f"{report.module_count} modules with gaps, "
+        f"{report.total_missing_line_count} uncovered lines, "
+        f"{len(without_tests)} modules without obvious companion tests"
+    )
+    return 0
+
+
+def _display_path(path: Path) -> Path:
+    """Display paths relative to the current working directory when possible."""
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(Path.cwd().resolve())
+    except ValueError:
+        return resolved
 
 
 if __name__ == "__main__":
