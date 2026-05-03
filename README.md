@@ -57,11 +57,15 @@ def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
     if ac_mode == "record":
         # Runs your real agent, records the trajectory
         run_my_agent(ac_recorder)
+        run = ac_recorder.run
     elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+        # Uses the recorded cassette -- no network, no tokens
+        run = ac_replay_engine.recorded_run
+    else:
+        run_my_agent(ac_recorder)
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
+    contract = ac_check_contract(run)
     assert contract.passed, contract.failures()
 ```
 
@@ -202,6 +206,17 @@ agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
 agentcontract init                               # Starter config
 ```
+
+## Documentation
+
+The `docs/` directory contains focused guides for day-to-day use:
+
+- [Documentation overview](docs/index.md)
+- [Quickstart](docs/quickstart.md)
+- [Configuration](docs/configuration.md)
+- [Assertions and policies](docs/assertions-and-policies.md)
+- [Replay and cassettes](docs/replay-and-cassettes.md)
+- [Integrations](docs/integrations.md)
 
 ## Why Not VCR / pytest-recording?
 
