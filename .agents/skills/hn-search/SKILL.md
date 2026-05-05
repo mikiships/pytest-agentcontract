@@ -33,9 +33,13 @@ Two search endpoints:
 https://hn.algolia.com/api/v1/search?query=QUERY&tags=TAG&hitsPerPage=N&numericFilters=FILTERS
 ```
 
-### Step 2: Fetch with `web_fetch`
+### Step 2: Fetch the URL
 
-Use `web_fetch` to call the API. Response is JSON.
+Use the agent's available web fetch/search capability, or run `curl` from the shell, to call the API. Response is JSON.
+
+```bash
+curl -s "https://hn.algolia.com/api/v1/search?query=openai+gpt&tags=story&hitsPerPage=10"
+```
 
 ### Parameters
 
@@ -80,7 +84,7 @@ Combine with commas: `numericFilters=points>100,num_comments>50`
 
 To search within a time window, use Unix timestamps with `created_at_i`:
 
-Calculate the current Unix timestamp first (e.g., via `exec: date +%s`), then subtract:
+Calculate the current Unix timestamp first (for example, run `date +%s` in the shell), then subtract:
 
 | Window | Subtract from now |
 |--------|------------------|

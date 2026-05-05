@@ -21,16 +21,16 @@ For new adapter work: see `.claude/skills/steps/explore-adapter.md`
 ### 3. Build
 - Smallest possible diff that solves the problem
 - Follow existing code style (check the file you're editing)
-- Type hints on all public functions
-- No `any` types in TypeScript, no untyped functions in Python
-- If adding a new module, add it to `__init__.py` exports
+- Type hints on all public Python functions
+- Avoid untyped public Python functions; keep `Any` usage narrow and consistent with nearby code
+- If adding or renaming public API, update the relevant `__init__.py` exports and any README/tests that document the public surface
 
 For refactoring: see `.claude/skills/steps/build-refactor.md`
 
 ### 4. Validate
 - Run: `.venv/bin/pytest tests/ -x -q`
 - Run: `.venv/bin/ruff check src/ tests/`
-- Run: `.venv/bin/mypy src/`
+- Run: `.venv/bin/mypy src/` when the change touches typed source code or public API
 - If any test fails, fix it before proceeding
 - If you added new public functionality, write at least one test (happy path + edge case)
 
