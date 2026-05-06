@@ -147,7 +147,7 @@ def ac_replay_engine(
 
 
 @pytest.fixture
-def ac_assert(ac_config: AgentContractConfig) -> AssertionEngine:
+def ac_assert() -> AssertionEngine:
     """Provide an AssertionEngine instance."""
     return AssertionEngine()
 
