@@ -272,6 +272,40 @@ def test_patch_anthropic_handles_non_integer_usage_values():
     assert turn.tokens is None
 
 
+def test_patch_openai_handles_non_finite_usage_values():
+    response = {
+        "choices": [{"message": {"content": "Done."}}],
+        "usage": {"prompt_tokens": float("inf"), "completion_tokens": float("-inf")},
+    }
+    client = _Container(chat=_Container(completions=_OpenAICompletions(response)))
+
+    recorder = Recorder(scenario="openai-non-finite-usage")
+    with recorder.recording():
+        unpatch = patch_openai(client, recorder)
+        client.chat.completions.create(model="unused", messages=[])
+        unpatch()
+
+    turn = recorder.run.turns[0]
+    assert turn.tokens is None
+
+
+def test_patch_anthropic_handles_non_finite_usage_values():
+    response = {
+        "content": [{"type": "text", "text": "Done."}],
+        "usage": {"input_tokens": float("inf"), "output_tokens": float("-inf")},
+    }
+    client = _Container(messages=_AnthropicMessages(response))
+
+    recorder = Recorder(scenario="anthropic-non-finite-usage")
+    with recorder.recording():
+        unpatch = patch_anthropic(client, recorder)
+        client.messages.create(model="unused", messages=[])
+        unpatch()
+
+    turn = recorder.run.turns[0]
+    assert turn.tokens is None
+
+
 def test_patch_openai_handles_async_create():
     response = {
         "choices": [{"message": {"content": "Hello from async assistant"}}],
