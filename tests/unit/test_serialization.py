@@ -150,6 +150,52 @@ def test_run_from_dict_coerces_nullable_and_string_numeric_fields():
     assert turn.tokens.total == 6
 
 
+def test_run_from_dict_defaults_non_finite_integer_fields():
+    run = run_from_dict(
+        {
+            "model": {
+                "max_tokens": float("inf"),
+                "seed": float("-inf"),
+            },
+            "summary": {
+                "total_turns": float("inf"),
+                "total_tokens": {
+                    "prompt": float("inf"),
+                    "completion": float("-inf"),
+                    "total": float("nan"),
+                },
+                "total_tool_calls": float("-inf"),
+            },
+            "turns": [
+                {
+                    "index": float("inf"),
+                    "role": "assistant",
+                    "tokens": {
+                        "prompt": float("inf"),
+                        "completion": float("-inf"),
+                        "total": float("nan"),
+                    },
+                }
+            ],
+        }
+    )
+
+    assert run.model.max_tokens == 4096
+    assert run.model.seed is None
+    assert run.summary.total_turns == 0
+    assert run.summary.total_tokens.prompt == 0
+    assert run.summary.total_tokens.completion == 0
+    assert run.summary.total_tokens.total == 0
+    assert run.summary.total_tool_calls == 0
+
+    turn = run.turns[0]
+    assert turn.index == 0
+    assert turn.tokens is not None
+    assert turn.tokens.prompt == 0
+    assert turn.tokens.completion == 0
+    assert turn.tokens.total == 0
+
+
 def test_run_to_dict_coerces_non_json_tool_payloads():
     run = AgentRun(
         turns=[
