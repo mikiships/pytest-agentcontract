@@ -169,8 +169,11 @@ def _record_anthropic_response(response: Any, recorder: Recorder, latency_ms: fl
     for block in blocks:
         block_type = _get_field(block, "type")
         if block_type == "text":
+            text = _get_field(block, "text")
+            if text is None:
+                continue
             saw_replayable_content = True
-            content_text += str(_get_field(block, "text", ""))
+            content_text += str(text)
         elif block_type == "tool_use":
             saw_replayable_content = True
             function_name = _get_field(block, "name", "")
@@ -230,7 +233,7 @@ def _coerce_int(value: Any, default: int = 0) -> int:
         return default
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (OverflowError, TypeError, ValueError):
         return default
 
 

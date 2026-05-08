@@ -132,3 +132,20 @@ def test_recorder_coerces_non_string_content_and_numeric_fields():
     assert turn.tokens.prompt == 3
     assert turn.tokens.completion == 2
     assert turn.tokens.total == 5
+
+
+def test_recorder_ignores_non_finite_token_counts():
+    rec = Recorder(scenario="non-finite-token-counts")
+
+    with rec.recording():
+        rec.add_turn(
+            role="assistant",
+            content="Done.",
+            prompt_tokens=float("inf"),  # type: ignore[arg-type]
+            completion_tokens=float("-inf"),  # type: ignore[arg-type]
+        )
+
+    turn = rec.run.turns[0]
+    assert turn.tokens is None
+    assert rec.run.summary.total_tokens.prompt == 0
+    assert rec.run.summary.total_tokens.completion == 0
