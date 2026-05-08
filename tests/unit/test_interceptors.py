@@ -231,6 +231,27 @@ def test_patch_anthropic_coerces_null_tool_input_to_empty_dict():
     assert turn.tool_calls[0].arguments == {}
 
 
+def test_patch_anthropic_does_not_stringify_null_text_blocks():
+    response = {
+        "content": [
+            {"type": "text", "text": None},
+            {"type": "tool_use", "id": "tc1", "name": "lookup_order", "input": {"order_id": "123"}},
+        ],
+        "model": "claude-test",
+    }
+    client = _Container(messages=_AnthropicMessages(response))
+
+    recorder = Recorder(scenario="anthropic-null-text")
+    with recorder.recording():
+        unpatch = patch_anthropic(client, recorder)
+        client.messages.create(model="unused", messages=[])
+        unpatch()
+
+    turn = recorder.run.turns[0]
+    assert turn.content is None
+    assert turn.tool_calls[0].function == "lookup_order"
+
+
 def test_patch_openai_handles_non_integer_usage_values():
     response = {
         "choices": [
@@ -246,6 +267,30 @@ def test_patch_openai_handles_non_integer_usage_values():
     client = _Container(chat=_Container(completions=_OpenAICompletions(response)))
 
     recorder = Recorder(scenario="openai-bad-usage")
+    with recorder.recording():
+        unpatch = patch_openai(client, recorder)
+        client.chat.completions.create(model="unused", messages=[])
+        unpatch()
+
+    turn = recorder.run.turns[0]
+    assert turn.tokens is None
+
+
+def test_patch_openai_handles_non_finite_usage_values():
+    response = {
+        "choices": [
+            {
+                "message": {
+                    "content": "Done",
+                    "tool_calls": [],
+                }
+            }
+        ],
+        "usage": {"prompt_tokens": float("inf"), "completion_tokens": float("-inf")},
+    }
+    client = _Container(chat=_Container(completions=_OpenAICompletions(response)))
+
+    recorder = Recorder(scenario="openai-non-finite-usage")
     with recorder.recording():
         unpatch = patch_openai(client, recorder)
         client.chat.completions.create(model="unused", messages=[])
