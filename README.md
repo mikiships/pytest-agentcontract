@@ -201,7 +201,13 @@ agentcontract init
 agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
 agentcontract init                               # Starter config
+agentcontract scan-pii tests/scenarios          # Scan cassettes for likely PII
 ```
+
+`scan-pii` recursively scans `.agentrun.json` files under directories and exits nonzero
+when it finds high-confidence emails, US SSNs, phone numbers, or Luhn-valid
+credit-card-like numbers in turn content, tool arguments, or tool results. Report previews
+are masked, so the command is suitable for pre-commit hooks and CI checks.
 
 ## Why Not VCR / pytest-recording?
 
