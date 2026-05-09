@@ -26,7 +26,21 @@ def main(argv: list[str] | None = None) -> int:
     # init command
     subparsers.add_parser("init", help="Create a starter agentcontract.yml")
 
-    args = parser.parse_args(argv)
+    # scan-pii command
+    scan_pii_parser = subparsers.add_parser(
+        "scan-pii", help="Scan cassette files for likely PII exposure"
+    )
+    scan_pii_parser.add_argument(
+        "paths",
+        nargs="+",
+        type=Path,
+        help="One or more .agentrun.json files or directories to scan",
+    )
+
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else 2
 
     if args.command == "info":
         return _cmd_info(args.path)
@@ -34,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_validate(args.path)
     elif args.command == "init":
         return _cmd_init()
+    elif args.command == "scan-pii":
+        return _cmd_scan_pii(args.paths)
     else:
         parser.print_help()
         return 0
@@ -128,6 +144,77 @@ reporting:
         return 1
     print(f"Created {target}")
     return 0
+
+
+def _cmd_scan_pii(paths: list[Path]) -> int:
+    """Scan cassette files for likely PII exposure."""
+    from agentcontract.pii import PiiFinding, PiiScanError, scan_file
+
+    targets, errors = _discover_pii_targets(paths)
+    findings_by_file: dict[Path, list[PiiFinding]] = {}
+
+    for target in targets:
+        try:
+            findings = scan_file(target)
+        except PiiScanError as exc:
+            errors.append(f"Error: {exc}")
+            continue
+
+        if findings:
+            findings_by_file[target] = findings
+
+    if findings_by_file:
+        total_findings = sum(len(findings) for findings in findings_by_file.values())
+        total_files = len(findings_by_file)
+        print(f"Potential PII found: {total_findings} finding(s) in {total_files} file(s).")
+        for target, findings in findings_by_file.items():
+            print(f"{target}:")
+            for finding in findings:
+                print(f"  - {finding.json_path} [{finding.kind}] {finding.preview}")
+    elif not errors:
+        if targets:
+            print(f"No potential PII found in {len(targets)} cassette(s).")
+        else:
+            print("No .agentrun.json files found.")
+
+    for error in errors:
+        print(error, file=sys.stderr)
+
+    if errors:
+        return 2
+    if findings_by_file:
+        return 1
+    return 0
+
+
+def _discover_pii_targets(paths: list[Path]) -> tuple[list[Path], list[str]]:
+    targets: list[Path] = []
+    errors: list[str] = []
+    seen: set[Path] = set()
+
+    for path in paths:
+        if not path.exists():
+            errors.append(f"Error: {path} not found")
+            continue
+
+        if path.is_dir():
+            candidates = sorted(candidate for candidate in path.rglob("*.agentrun.json"))
+        elif path.is_file():
+            candidates = [path]
+        else:
+            errors.append(f"Error: {path} is not a file or directory")
+            continue
+
+        for candidate in candidates:
+            if not candidate.is_file():
+                continue
+            key = candidate.resolve()
+            if key in seen:
+                continue
+            seen.add(key)
+            targets.append(candidate)
+
+    return targets, errors
 
 
 if __name__ == "__main__":
