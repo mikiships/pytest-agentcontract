@@ -16,6 +16,27 @@ from agentcontract.serialization import load_run
 from agentcontract.types import AgentRun
 
 
+def _resolve_cassette_path(scenarios_dir: str | Path, scenario: str) -> Path:
+    """Build a cassette path while keeping scenario-controlled paths in bounds."""
+    scenario_name = str(scenario)
+    scenario_path = Path(scenario_name)
+    if scenario_path.is_absolute():
+        raise ValueError(
+            f"invalid scenario name {scenario_name!r}: absolute paths are not allowed"
+        )
+
+    base_path = Path(scenarios_dir).resolve(strict=False)
+    cassette_path = (base_path / f"{scenario_name}.agentrun.json").resolve(strict=False)
+    try:
+        cassette_path.relative_to(base_path)
+    except ValueError as exc:
+        raise ValueError(
+            f"invalid scenario name {scenario_name!r}: cassette path must stay within "
+            f"{base_path}"
+        ) from exc
+    return cassette_path
+
+
 def pytest_addoption(parser: pytest.Parser) -> None:
     """Add agentcontract CLI options to pytest."""
     group = parser.getgroup("agentcontract", "Agent trajectory testing")
@@ -91,20 +112,26 @@ def ac_recorder(request: pytest.FixtureRequest) -> Generator[Recorder, None, Non
     else:
         scenario = request.node.name
 
+    cassette_path: Path | None = None
+    if request.config.getoption("--ac-record"):
+        scenarios_dir = request.config.getoption("--ac-scenarios") or "tests/scenarios"
+        try:
+            cassette_path = _resolve_cassette_path(scenarios_dir, scenario)
+        except ValueError as e:
+            pytest.fail(f"Refusing to save cassette: {e}")
+
     recorder = Recorder(scenario=scenario)
 
     with recorder.recording():
         yield recorder
 
     # Auto-save if in record mode
-    if request.config.getoption("--ac-record"):
-        scenarios_dir = request.config.getoption("--ac-scenarios") or "tests/scenarios"
-        path = Path(scenarios_dir) / f"{scenario}.agentrun.json"
+    if cassette_path is not None:
         try:
-            recorder.save(path)
+            recorder.save(cassette_path)
         except (OSError, ValueError, TypeError) as e:
             pytest.fail(
-                f"Failed to save cassette '{path}' ({type(e).__name__}): {e}"
+                f"Failed to save cassette '{cassette_path}' ({type(e).__name__}): {e}"
             )
 
 
@@ -131,7 +158,10 @@ def ac_replay_engine(
         scenario = request.node.name
 
     scenarios_dir = request.config.getoption("--ac-scenarios") or "tests/scenarios"
-    cassette_path = Path(scenarios_dir) / f"{scenario}.agentrun.json"
+    try:
+        cassette_path = _resolve_cassette_path(scenarios_dir, scenario)
+    except ValueError as e:
+        pytest.fail(f"Refusing to load cassette: {e}")
 
     if not cassette_path.exists():
         pytest.skip(f"No cassette found at {cassette_path}")
