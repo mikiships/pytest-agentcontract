@@ -28,32 +28,20 @@ Use vision models to self-review screenshots against design intent. Catch spacin
 
 ### Step 1: Capture the Screenshot
 
-Use one of these methods to get a screenshot:
+Use the screenshot capability available in the current environment:
 
-**Via browser tool:**
-```
-browser: screenshot (captures the current page)
-```
-
-**Via node screen capture (if available):**
-```
-nodes: screen_record
-```
-
-**Via Peekaboo (macOS):**
-```
-exec: peekaboo screenshot
-```
-
-**User-provided:** The user may paste/attach a screenshot directly.
+- Browser automation screenshot for local web pages or component previews
+- OS/window screenshot for desktop apps
+- A project-provided screenshot command, if the repo documents one
+- User-provided screenshot pasted or attached directly
 
 ### Step 2: Analyze with Vision
 
-Use the `image` tool to analyze the screenshot:
+Open the screenshot with the current agent's image or vision capability and ask for a focused review:
 
 ```
-image: [path or URL to screenshot]
-prompt: "Review this UI screenshot for design quality..."
+[screenshot path or attached image]
+"Review this UI screenshot for design quality..."
 ```
 
 ### Step 3: Structured Review
