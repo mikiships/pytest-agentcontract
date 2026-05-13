@@ -1,6 +1,7 @@
 ---
 name: hn-search
 description: Search and monitor Hacker News stories, comments, and users via the free Algolia API. Use when the user asks about HN discussions, wants to find posts about a topic, or monitor HN for mentions. No API key required.
+compatibility: Requires network access and an HTTP-capable fetch mechanism such as curl or the agent's web tools.
 ---
 
 # Hacker News Search
@@ -33,9 +34,13 @@ Two search endpoints:
 https://hn.algolia.com/api/v1/search?query=QUERY&tags=TAG&hitsPerPage=N&numericFilters=FILTERS
 ```
 
-### Step 2: Fetch with `web_fetch`
+### Step 2: Fetch the API JSON
 
-Use `web_fetch` to call the API. Response is JSON.
+Use the agent's available HTTP fetch mechanism to call the API. When shell access is available, prefer `curl -fsSL` so the raw response can be parsed as JSON.
+
+```bash
+curl -fsSL "https://hn.algolia.com/api/v1/search?query=QUERY&tags=story&hitsPerPage=N"
+```
 
 ### Parameters
 
@@ -80,7 +85,7 @@ Combine with commas: `numericFilters=points>100,num_comments>50`
 
 To search within a time window, use Unix timestamps with `created_at_i`:
 
-Calculate the current Unix timestamp first (e.g., via `exec: date +%s`), then subtract:
+Calculate the current Unix timestamp first (for example, `date +%s` from the shell), then subtract:
 
 | Window | Subtract from now |
 |--------|------------------|
