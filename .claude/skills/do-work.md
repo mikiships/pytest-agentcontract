@@ -1,36 +1,38 @@
 # /do-work
 
-Entrypoint for all feature and bugfix work on pytest-agentcontract.
+Entrypoint for feature and bugfix work on pytest-agentcontract, a Python pytest plugin and CLI for recording, replaying, and asserting LLM agent trajectories.
 
 ## Steps
 
 ### 1. Plan
 - Read the task/prompt carefully
 - Identify which files need to change
-- If the change touches public API (anything in `__init__.py` exports), note it
+- If the change touches public API (`src/agentcontract/__init__.py` exports, pytest plugin behavior, or CLI commands), note it
 - If unsure about approach, check existing patterns in nearby code first
 
 ### 2. Explore
 - Read the files you'll modify. Don't guess at structure.
-- Check `tests/unit/` for existing test coverage of the area
+- Check `tests/unit/` and `tests/scenarios/` for existing coverage of the area
 - If the change involves a new assertion type or adapter, read an existing one as template
+- Use `examples/customer_support/` as the current end-to-end example for record, replay, and assert behavior
 
-For frontend/UI work: see `.claude/skills/steps/explore-ui.md`
+For CLI work: see `.claude/skills/steps/explore-cli.md`
 For new adapter work: see `.claude/skills/steps/explore-adapter.md`
 
 ### 3. Build
 - Smallest possible diff that solves the problem
 - Follow existing code style (check the file you're editing)
-- Type hints on all public functions
-- No `any` types in TypeScript, no untyped functions in Python
-- If adding a new module, add it to `__init__.py` exports
+- Keep strict typing on public Python functions
+- If adding a public module or symbol, update `src/agentcontract/__init__.py` exports only when the symbol is intended as public API
+- Preserve README workflows: `pytest --ac-record`, `pytest --ac-replay`, `agentcontract validate`, and `agentcontract init`
 
 For refactoring: see `.claude/skills/steps/build-refactor.md`
 
 ### 4. Validate
-- Run: `.venv/bin/pytest tests/ -x -q`
-- Run: `.venv/bin/ruff check src/ tests/`
-- Run: `.venv/bin/mypy src/`
+- Run focused pytest coverage for the touched area; default to `.venv/bin/pytest tests/ -x -q` when the local venv exists, otherwise `pytest tests/ -x -q`
+- For replay/cassette behavior, exercise the README workflow with `pytest --ac-replay`; use `pytest --ac-record -k <test>` only when intentionally refreshing a cassette
+- For changed or generated cassettes, run `agentcontract validate <cassette>`
+- For broader source changes, also run the dev checks configured in `pyproject.toml` when available: `.venv/bin/ruff check src/ tests/` and `.venv/bin/mypy src/`
 - If any test fails, fix it before proceeding
 - If you added new public functionality, write at least one test (happy path + edge case)
 
