@@ -33,9 +33,9 @@ Two search endpoints:
 https://hn.algolia.com/api/v1/search?query=QUERY&tags=TAG&hitsPerPage=N&numericFilters=FILTERS
 ```
 
-### Step 2: Fetch with `web_fetch`
+### Step 2: Fetch the API URL
 
-Use `web_fetch` to call the API. Response is JSON.
+Use an available HTTP fetch tool or `curl` to call the API. Response is JSON.
 
 ### Parameters
 
@@ -80,7 +80,7 @@ Combine with commas: `numericFilters=points>100,num_comments>50`
 
 To search within a time window, use Unix timestamps with `created_at_i`:
 
-Calculate the current Unix timestamp first (e.g., via `exec: date +%s`), then subtract:
+Calculate the current Unix timestamp first (for example, run `date +%s` in the shell), then subtract:
 
 | Window | Subtract from now |
 |--------|------------------|

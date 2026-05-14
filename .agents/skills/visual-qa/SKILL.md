@@ -30,29 +30,28 @@ Use vision models to self-review screenshots against design intent. Catch spacin
 
 Use one of these methods to get a screenshot:
 
-**Via browser tool:**
+**Via browser automation:**
 ```
-browser: screenshot (captures the current page)
+Capture the current page with the available browser screenshot tool.
 ```
 
-**Via node screen capture (if available):**
+**Via local screenshot utility (if available):**
 ```
-nodes: screen_record
+Capture the target window or screen and save it to a local image path.
 ```
 
 **Via Peekaboo (macOS):**
 ```
-exec: peekaboo screenshot
+peekaboo screenshot
 ```
 
 **User-provided:** The user may paste/attach a screenshot directly.
 
 ### Step 2: Analyze with Vision
 
-Use the `image` tool to analyze the screenshot:
+Analyze the screenshot with the available vision-capable image viewer or attached-image flow:
 
 ```
-image: [path or URL to screenshot]
 prompt: "Review this UI screenshot for design quality..."
 ```
 
@@ -302,7 +301,6 @@ meaning), and text readability at the shown sizes.
 ### Example 1: "Review this landing page screenshot"
 
 ```
-image: [screenshot path]
 prompt: "Review this landing page for design quality. Check spacing
 consistency, typography hierarchy, visual hierarchy (where does the eye
 go first?), CTA prominence, color contrast, and overall polish. Be
@@ -312,7 +310,6 @@ specific about issues and suggest fixes. Rate 1-10."
 ### Example 2: "Does my implementation match this Figma design?"
 
 ```
-image: [mockup.png, implementation.png]
 prompt: "Compare these two images. First is the Figma mockup, second
 is the implementation. Identify every deviation in spacing, color,
 typography, alignment, and missing elements. Rate fidelity 1-10."
@@ -321,7 +318,6 @@ typography, alignment, and missing elements. Rate fidelity 1-10."
 ### Example 3: "Check if this component looks good on mobile"
 
 ```
-image: [mobile-screenshot.png]
 prompt: "Review this mobile UI. Is text readable? Are touch targets
 large enough (≥44px)? Does anything overflow? Is the layout well-adapted
 to mobile width? Check contrast and spacing."
