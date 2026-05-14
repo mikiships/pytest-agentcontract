@@ -12,8 +12,10 @@ Entrypoint for all feature and bugfix work on pytest-agentcontract.
 
 ### 2. Explore
 - Read the files you'll modify. Don't guess at structure.
+- Use `README.md` as the source of truth for advertised commands and workflows
 - Check `tests/unit/` for existing test coverage of the area
-- If the change involves a new assertion type or adapter, read an existing one as template
+- Check `examples/` when changing record/replay examples or public workflow docs
+- If the change involves a new assertion type or adapter, read an existing one as a template
 
 For frontend/UI work: see `.claude/skills/steps/explore-ui.md`
 For new adapter work: see `.claude/skills/steps/explore-adapter.md`
@@ -22,16 +24,20 @@ For new adapter work: see `.claude/skills/steps/explore-adapter.md`
 - Smallest possible diff that solves the problem
 - Follow existing code style (check the file you're editing)
 - Type hints on all public functions
-- No `any` types in TypeScript, no untyped functions in Python
-- If adding a new module, add it to `__init__.py` exports
+- No untyped public Python functions
+- If adding public API, update the appropriate `__init__.py` lazy export and `__all__`
+- If adding a public adapter, register it in `src/agentcontract/adapters/__init__.py`
 
 For refactoring: see `.claude/skills/steps/build-refactor.md`
 
 ### 4. Validate
-- Run: `.venv/bin/pytest tests/ -x -q`
-- Run: `.venv/bin/ruff check src/ tests/`
-- Run: `.venv/bin/mypy src/`
-- If any test fails, fix it before proceeding
+- Run: `uv run pytest tests/ -x -q`
+- Run: `uv run ruff check src/ tests/`
+- Run: `uv run mypy src/`
+- For record/replay changes, also run targeted examples with `uv run pytest --ac-record` or `uv run pytest --ac-replay` as appropriate
+- For CLI changes, smoke-test the console script, for example `uv run agentcontract --help`
+- If tests or lint fail, fix them before proceeding
+- If mypy has known baseline failures, document the existing failures and do not add new ones
 - If you added new public functionality, write at least one test (happy path + edge case)
 
 ### 5. Commit
