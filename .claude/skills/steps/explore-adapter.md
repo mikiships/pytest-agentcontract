@@ -4,9 +4,9 @@ When building or modifying an adapter (LangGraph, LlamaIndex, OpenAI Agents SDK)
 
 1. Read the existing adapter closest to your target: `src/agentcontract/adapters/`
 2. Each adapter needs:
-   - A recorder integration (intercepts SDK calls)
-   - A replay integration (stubs SDK responses from cassette)
-   - Registration in `src/agentcontract/adapters/__init__.py`
+   - A recorder integration that wraps the framework execution method and records turns
+   - A focused test in `tests/unit/test_adapters.py`
+   - Lazy registration in `src/agentcontract/adapters/__init__.py`
 3. Check the target SDK's actual call pattern:
    - What function/method makes the LLM call?
    - What's the response shape?
