@@ -30,29 +30,17 @@ Use vision models to self-review screenshots against design intent. Catch spacin
 
 Use one of these methods to get a screenshot:
 
-**Via browser tool:**
-```
-browser: screenshot (captures the current page)
-```
+**Browser or local UI:** Use the active browser automation or screenshot tool for the target viewport. In Codex, prefer the Browser Use or Playwright workflow for browser targets and the screenshot skill for OS-level captures.
 
-**Via node screen capture (if available):**
-```
-nodes: screen_record
-```
-
-**Via Peekaboo (macOS):**
-```
-exec: peekaboo screenshot
-```
+**Existing local screenshot:** Open the file with the available image-viewing tool. In Codex, use `view_image` for a local screenshot path.
 
 **User-provided:** The user may paste/attach a screenshot directly.
 
 ### Step 2: Analyze with Vision
 
-Use the `image` tool to analyze the screenshot:
+Use the available vision-capable image view or attachment workflow to analyze the screenshot:
 
 ```
-image: [path or URL to screenshot]
 prompt: "Review this UI screenshot for design quality..."
 ```
 
@@ -302,7 +290,7 @@ meaning), and text readability at the shown sizes.
 ### Example 1: "Review this landing page screenshot"
 
 ```
-image: [screenshot path]
+Open the screenshot in the vision-capable image view.
 prompt: "Review this landing page for design quality. Check spacing
 consistency, typography hierarchy, visual hierarchy (where does the eye
 go first?), CTA prominence, color contrast, and overall polish. Be
@@ -312,7 +300,7 @@ specific about issues and suggest fixes. Rate 1-10."
 ### Example 2: "Does my implementation match this Figma design?"
 
 ```
-image: [mockup.png, implementation.png]
+Open the mockup and implementation screenshots together in the vision-capable image view.
 prompt: "Compare these two images. First is the Figma mockup, second
 is the implementation. Identify every deviation in spacing, color,
 typography, alignment, and missing elements. Rate fidelity 1-10."
@@ -321,7 +309,7 @@ typography, alignment, and missing elements. Rate fidelity 1-10."
 ### Example 3: "Check if this component looks good on mobile"
 
 ```
-image: [mobile-screenshot.png]
+Open the mobile screenshot in the vision-capable image view.
 prompt: "Review this mobile UI. Is text readable? Are touch targets
 large enough (≥44px)? Does anything overflow? Is the layout well-adapted
 to mobile width? Check contrast and spacing."
