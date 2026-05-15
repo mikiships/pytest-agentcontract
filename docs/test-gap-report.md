@@ -16,7 +16,7 @@ Default branch used as the task base: `origin/main`.
 Command used:
 
 ```sh
-uv run pytest --cov=agentcontract --cov-report=term-missing --cov-report=json
+uv run --extra dev pytest --cov=agentcontract --cov-report=term-missing --cov-report=json
 ```
 
 Result:
@@ -26,6 +26,10 @@ Result:
 - Coverage artifact generated locally: `coverage.json`
 - Coverage warning observed:
   `Module agentcontract was previously imported, but not measured`
+
+The `--extra dev` flag is required from a clean checkout because `pytest-cov`
+is declared in the optional `dev` dependency group, not in the runtime
+dependencies.
 
 The warning appears to come from the package being imported by pytest plugin
 loading before coverage begins. The per-file results are still useful for gap
@@ -171,7 +175,7 @@ the project starts enforcing coverage thresholds.
 Run the coverage command from the repository root:
 
 ```sh
-uv run pytest --cov=agentcontract --cov-report=term-missing --cov-report=json
+uv run --extra dev pytest --cov=agentcontract --cov-report=term-missing --cov-report=json
 ```
 
 Use the terminal report for missing line ranges and inspect `coverage.json` for
