@@ -91,7 +91,7 @@ def test_refund_denied_not_delivered(ac_recorder, ac_mode, ac_replay_engine, ac_
 
 
 @pytest.mark.agentcontract("refund-with-policies")
-def test_refund_with_policy_enforcement(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
+def test_refund_with_policy_enforcement(ac_recorder, ac_mode, ac_replay_engine):
     """Test: verify agent respects tool allowlist and confirmation policies."""
     if ac_mode == "replay" and ac_replay_engine is not None:
         run = ac_replay_engine.recorded_run
