@@ -56,13 +56,12 @@ def record_agent(agent: Any, recorder: Recorder) -> Callable[[], None]:
             async def async_wrapper(
                 *args: Any,
                 _orig: Any = original,
-                _name: str = method_name,
                 **kwargs: Any,
             ) -> Any:
                 start = time.monotonic()
                 result = await _orig(*args, **kwargs)
                 latency_ms = (time.monotonic() - start) * 1000
-                _extract_from_response(result, recorder, latency_ms, agent)
+                _extract_from_response(result, recorder, latency_ms)
                 return result
 
             setattr(agent, method_name, async_wrapper)
@@ -72,13 +71,12 @@ def record_agent(agent: Any, recorder: Recorder) -> Callable[[], None]:
             def sync_wrapper(
                 *args: Any,
                 _orig: Any = original,
-                _name: str = method_name,
                 **kwargs: Any,
             ) -> Any:
                 start = time.monotonic()
                 result = _orig(*args, **kwargs)
                 latency_ms = (time.monotonic() - start) * 1000
-                _extract_from_response(result, recorder, latency_ms, agent)
+                _extract_from_response(result, recorder, latency_ms)
                 return result
 
             setattr(agent, method_name, sync_wrapper)
@@ -93,9 +91,7 @@ def record_agent(agent: Any, recorder: Recorder) -> Callable[[], None]:
     return unpatch
 
 
-def _extract_from_response(
-    response: Any, recorder: Recorder, latency_ms: float, agent: Any
-) -> None:
+def _extract_from_response(response: Any, recorder: Recorder, latency_ms: float) -> None:
     """Extract turns from a LlamaIndex response.
 
     LlamaIndex agents return AgentChatResponse or Response objects.
