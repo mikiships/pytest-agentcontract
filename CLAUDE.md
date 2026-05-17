@@ -4,7 +4,7 @@ Pytest plugin for deterministic CI tests of LLM agent trajectories.
 Record once, replay offline, assert contracts.
 
 ## Quick Start
-- **Do work:** Use `/do-work <task>` skill (see `.claude/skills/do-work.md`)
+- **Do work:** Use `/do-work <task>` skill (see `.claude/skills/do-work/SKILL.md`; legacy pointer at `.claude/skills/do-work.md`)
 - Tests: `.venv/bin/pytest tests/ -x -q`
 - Lint: `.venv/bin/ruff check src/ tests/`
 - Type check: `.venv/bin/mypy src/`

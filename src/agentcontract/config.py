@@ -117,9 +117,7 @@ class AgentContractConfig:
             )
 
         policies = [
-            _parse_policy(p)
-            for p in _coerce_list(raw.get("policies"), [])
-            if isinstance(p, dict)
+            _parse_policy(p) for p in _coerce_list(raw.get("policies"), []) if isinstance(p, dict)
         ]
 
         return cls(
