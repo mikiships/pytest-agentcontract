@@ -54,14 +54,19 @@ Framework adapters (LangGraph, LlamaIndex, OpenAI Agents SDK) are included -- no
 ```python
 @pytest.mark.agentcontract("refund-eligible")
 def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
-    if ac_mode == "record":
-        # Runs your real agent, records the trajectory
+    if ac_mode == "replay":
+        assert ac_replay_engine is not None
+        # Runs your agent against recorded tool results
+        run_my_agent(ac_recorder, tool_stub=ac_replay_engine.tool_stub)
+        replay = ac_replay_engine.finish(ac_recorder.run.turns)
+        assert replay.ok, replay.errors
+        run = ac_replay_engine.recorded_run
+    else:
+        # Runs your real agent; --ac-record saves the trajectory
         run_my_agent(ac_recorder)
-    elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
+    contract = ac_check_contract(run)
     assert contract.passed, contract.failures()
 ```
 
@@ -192,6 +197,7 @@ agentcontract init
 - `final_response` -- last assistant message
 - `turn:N` -- specific turn by index
 - `full_conversation` -- all turns concatenated
+- `tool:function_name` -- tool target for `not_called`, `called_with`, and `called_count`
 - `tool_call:function_name:arguments` -- tool call arguments
 - `tool_call:function_name:result` -- tool call result
 
