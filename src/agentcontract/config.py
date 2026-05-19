@@ -11,6 +11,8 @@ import yaml
 
 @dataclass
 class ReplayConfig:
+    """Replay behavior loaded from the config file."""
+
     model: str = ""
     seed: int | None = 42
     stub_tools: bool = True
@@ -19,6 +21,8 @@ class ReplayConfig:
 
 @dataclass
 class BudgetConfig:
+    """Per-scenario budget limits for recorded runs."""
+
     max_cost_usd: float = 0.05
     max_latency_ms: float = 10000
     max_turns: int = 15
@@ -117,9 +121,7 @@ class AgentContractConfig:
             )
 
         policies = [
-            _parse_policy(p)
-            for p in _coerce_list(raw.get("policies"), [])
-            if isinstance(p, dict)
+            _parse_policy(p) for p in _coerce_list(raw.get("policies"), []) if isinstance(p, dict)
         ]
 
         return cls(
