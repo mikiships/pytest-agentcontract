@@ -13,7 +13,7 @@
   <img src="docs/demo.gif" alt="pytest-agentcontract demo: record, replay, assert" width="600">
 </p>
 
-Your agent calls `lookup_order`, then `check_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
+Your agent calls `lookup_order`, then `check_refund_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
 
 ```bash
 # Record a trajectory (hits real APIs once)
@@ -25,11 +25,11 @@ pytest --ac-replay
 
 ```
 tests/scenarios/refund-eligible.agentrun.json
-├── turn 0: user → "I want a refund for order 123"
-├── turn 1: assistant → lookup_order(order_id="123")
-├── turn 2: assistant → check_eligibility(order_id="123")
-├── turn 3: assistant → process_refund(order_id="123", amount=49.99)
-└── turn 4: assistant → "Your refund of $49.99 has been processed."
+├── turn 0: user → "I want a refund for order ORD-123"
+├── turn 1: assistant → lookup_order(order_id="ORD-123")
+├── turn 2: assistant → check_refund_eligibility(order_id="ORD-123")
+├── turn 3: assistant → process_refund(order_id="ORD-123", amount=79.99)
+└── turn 4: assistant → "Your refund of $79.99 has been processed."
 ```
 
 ## Install
@@ -38,14 +38,14 @@ tests/scenarios/refund-eligible.agentrun.json
 pip install pytest-agentcontract
 ```
 
-With auto-recording interceptors:
+Optional integrations:
 ```bash
-pip install pytest-agentcontract[openai]      # OpenAI SDK
-pip install pytest-agentcontract[anthropic]    # Anthropic SDK
-pip install pytest-agentcontract[all]          # Everything
+pip install pytest-agentcontract[openai]      # OpenAI SDK interceptor
+pip install pytest-agentcontract[anthropic]   # Anthropic SDK interceptor
+pip install pytest-agentcontract[all]         # OpenAI, Anthropic, LangChain Core, LlamaIndex Core
 ```
 
-Framework adapters (LangGraph, LlamaIndex, OpenAI Agents SDK) are included -- no extras needed.
+Adapter modules ship with pytest-agentcontract. Your app still needs the framework package it uses; install `openai-agents` separately for the OpenAI Agents SDK adapter.
 
 ## Quick Start
 
@@ -57,11 +57,16 @@ def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
     if ac_mode == "record":
         # Runs your real agent, records the trajectory
         run_my_agent(ac_recorder)
+        run = ac_recorder.run
     elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+        # Loads the cassette -- no network, no tokens
+        assert ac_replay_engine is not None
+        run = ac_replay_engine.recorded_run
+    else:
+        run_my_agent(ac_recorder)
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
+    contract = ac_check_contract(run)
     assert contract.passed, contract.failures()
 ```
 
@@ -79,6 +84,14 @@ pytest --ac-replay
 # Deterministic. No API keys. No flakes. Sub-second.
 ```
 
+## Documentation
+
+- [Getting Started](docs/getting-started.md) -- installation, pytest modes, fixtures, and the customer support example workflow.
+- [Configuration](docs/configuration.md) -- `agentcontract.yml`, scenario lookup, defaults, overrides, policies, budgets, and reporting fields.
+- [Cassette Format](docs/cassette-format.md) -- `.agentrun.json` schema, turns, tool calls, summaries, and compatibility expectations.
+- [Assertions And Policies](docs/assertions-and-policies.md) -- assertion types, target syntax, current policy types, and failure behavior.
+- [Adapters](docs/adapters.md) -- manual recording, OpenAI/Anthropic interceptors, framework adapters, and tool-result limitations.
+
 ## SDK Auto-Recording
 
 Intercept real SDK calls instead of manually building turns:
@@ -93,7 +106,7 @@ def test_with_real_agent(ac_recorder):
     # Every chat.completions.create call is recorded automatically
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "user", "content": "Refund order 123"}],
+        messages=[{"role": "user", "content": "Refund order ORD-123"}],
         tools=[...],
     )
     unpatch()
@@ -151,12 +164,12 @@ defaults:
     - type: called_with
       target: "tool:process_refund"
       schema:
-        order_id: "123"
+        order_id: "ORD-123"
 
 policies:
   - name: allowed-tools
     type: tool_allowlist
-    tools: [lookup_order, check_eligibility, process_refund]
+    tools: [lookup_order, check_refund_eligibility, process_refund]
 
   - name: confirm-before-refund
     type: requires_confirmation
