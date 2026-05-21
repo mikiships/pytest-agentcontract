@@ -13,7 +13,7 @@
   <img src="docs/demo.gif" alt="pytest-agentcontract demo: record, replay, assert" width="600">
 </p>
 
-Your agent calls `lookup_order`, then `check_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
+Your agent calls `lookup_order`, then `check_refund_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
 
 ```bash
 # Record a trajectory (hits real APIs once)
@@ -27,7 +27,7 @@ pytest --ac-replay
 tests/scenarios/refund-eligible.agentrun.json
 ├── turn 0: user → "I want a refund for order 123"
 ├── turn 1: assistant → lookup_order(order_id="123")
-├── turn 2: assistant → check_eligibility(order_id="123")
+├── turn 2: assistant → check_refund_eligibility(order_id="123")
 ├── turn 3: assistant → process_refund(order_id="123", amount=49.99)
 └── turn 4: assistant → "Your refund of $49.99 has been processed."
 ```
@@ -40,28 +40,40 @@ pip install pytest-agentcontract
 
 With auto-recording interceptors:
 ```bash
-pip install pytest-agentcontract[openai]      # OpenAI SDK
-pip install pytest-agentcontract[anthropic]    # Anthropic SDK
-pip install pytest-agentcontract[all]          # Everything
+pip install pytest-agentcontract[openai]      # OpenAI SDK interceptor
+pip install pytest-agentcontract[anthropic]    # Anthropic SDK interceptor
+pip install pytest-agentcontract[all]          # OpenAI, Anthropic, LangChain Core, LlamaIndex Core
 ```
 
-Framework adapters (LangGraph, LlamaIndex, OpenAI Agents SDK) are included -- no extras needed.
+Framework adapter modules are included. Install the target framework separately when your tests use it.
 
 ## Quick Start
 
 ### 1. Write a test
 
 ```python
+import pytest
+
+from agentcontract.config import AssertionSpec
+
+
 @pytest.mark.agentcontract("refund-eligible")
 def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
-    if ac_mode == "record":
+    if ac_mode == "replay":
+        # Loads tests/scenarios/refund-eligible.agentrun.json
+        assert ac_replay_engine is not None
+        run = ac_replay_engine.recorded_run
+    else:
         # Runs your real agent, records the trajectory
         run_my_agent(ac_recorder)
-    elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
+    contract = ac_check_contract(
+        run,
+        extra_assertions=[
+            AssertionSpec(type="contains", target="final_response", value="refund"),
+        ],
+    )
     assert contract.passed, contract.failures()
 ```
 
@@ -78,6 +90,16 @@ pytest --ac-record -k test_refund_flow
 pytest --ac-replay
 # Deterministic. No API keys. No flakes. Sub-second.
 ```
+
+## Documentation
+
+- [Getting Started](docs/getting-started.md) -- install, write a minimal test, record, and replay.
+- [Configuration](docs/configuration.md) -- supported `agentcontract.yml` sections and defaults.
+- [Assertions and Policies](docs/assertions-and-policies.md) -- assertion types, target syntax, and policies.
+- [Cassette Format](docs/cassette-format.md) -- `.agentrun.json` structure and compatibility notes.
+- [Adapters and Interceptors](docs/adapters-and-interceptors.md) -- manual recording, SDK interceptors, and framework adapters.
+- [CLI](docs/cli.md) -- `agentcontract` commands and pytest plugin options.
+- [Customer Support Example](examples/customer_support/README.md) -- bundled example scenarios and commands.
 
 ## SDK Auto-Recording
 
@@ -98,6 +120,8 @@ def test_with_real_agent(ac_recorder):
     )
     unpatch()
 ```
+
+SDK interceptors record assistant messages and tool-call requests. Tool results come from your application code, so add them manually if replay needs stubbed results.
 
 Works with Anthropic too:
 ```python
@@ -156,7 +180,7 @@ defaults:
 policies:
   - name: allowed-tools
     type: tool_allowlist
-    tools: [lookup_order, check_eligibility, process_refund]
+    tools: [lookup_order, check_refund_eligibility, process_refund]
 
   - name: confirm-before-refund
     type: requires_confirmation
