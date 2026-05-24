@@ -103,6 +103,37 @@ def test_config_from_dict_coerces_null_policy_lists():
     assert not result.passed
 
 
+def test_config_from_dict_ignores_unused_assertion_extension_fields():
+    config = AgentContractConfig.from_dict(
+        {
+            "defaults": {
+                "assertions": [
+                    {
+                        "type": "contains",
+                        "target": "final_response",
+                        "value": "refund",
+                        "threshold": 0.75,
+                        "prompt": "judge this",
+                        "judge_model": "gpt-test",
+                        "tools": ["lookup_order"],
+                        "block": ["process_refund"],
+                    }
+                ]
+            }
+        }
+    )
+
+    assertion = config.default_assertions[0]
+    assert assertion.type == "contains"
+    assert assertion.target == "final_response"
+    assert assertion.value == "refund"
+    assert not hasattr(assertion, "threshold")
+    assert not hasattr(assertion, "prompt")
+    assert not hasattr(assertion, "judge_model")
+    assert not hasattr(assertion, "tools")
+    assert not hasattr(assertion, "block")
+
+
 def test_config_from_dict_coerces_scalar_types():
     config = AgentContractConfig.from_dict(
         {
