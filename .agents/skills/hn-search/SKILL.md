@@ -33,9 +33,11 @@ Two search endpoints:
 https://hn.algolia.com/api/v1/search?query=QUERY&tags=TAG&hitsPerPage=N&numericFilters=FILTERS
 ```
 
-### Step 2: Fetch with `web_fetch`
+### Step 2: Fetch with the available web tool
 
-Use `web_fetch` to call the API. Response is JSON.
+Use the active agent's web fetch/open capability to call the API. In Codex, use the
+`web` tool when browsing is required, or run `curl` via `exec` if a direct fetch
+tool is not available. Response is JSON.
 
 ### Parameters
 

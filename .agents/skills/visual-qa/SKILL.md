@@ -30,29 +30,25 @@ Use vision models to self-review screenshots against design intent. Catch spacin
 
 Use one of these methods to get a screenshot:
 
-**Via browser tool:**
-```
-browser: screenshot (captures the current page)
-```
+**Via browser automation:** Use the active browser automation tool to capture
+the current page.
 
-**Via node screen capture (if available):**
-```
-nodes: screen_record
-```
+**Via Playwright or another browser runner:** Capture a screenshot at the
+target viewport and save it to a local path.
 
-**Via Peekaboo (macOS):**
-```
-exec: peekaboo screenshot
-```
+**Via OS screenshot tooling:** Use the screenshot skill or a platform screenshot
+command when browser capture is unavailable.
 
 **User-provided:** The user may paste/attach a screenshot directly.
 
 ### Step 2: Analyze with Vision
 
-Use the `image` tool to analyze the screenshot:
+Use the active image-viewing or vision capability to analyze the screenshot. For
+local files in Codex, open the image with `view_image` when available, then apply
+the review prompt:
 
 ```
-image: [path or URL to screenshot]
+[path or URL to screenshot]
 prompt: "Review this UI screenshot for design quality..."
 ```
 
@@ -228,7 +224,8 @@ Looks good: [What's working]
 
 ## Review Prompts for Vision Model
 
-Use these prompts with the `image` tool depending on what you need:
+Use these prompt templates with the active vision capability depending on what
+you need:
 
 ### General Review
 ```
@@ -302,7 +299,7 @@ meaning), and text readability at the shown sizes.
 ### Example 1: "Review this landing page screenshot"
 
 ```
-image: [screenshot path]
+[screenshot path]
 prompt: "Review this landing page for design quality. Check spacing
 consistency, typography hierarchy, visual hierarchy (where does the eye
 go first?), CTA prominence, color contrast, and overall polish. Be
@@ -312,7 +309,7 @@ specific about issues and suggest fixes. Rate 1-10."
 ### Example 2: "Does my implementation match this Figma design?"
 
 ```
-image: [mockup.png, implementation.png]
+[mockup.png, implementation.png]
 prompt: "Compare these two images. First is the Figma mockup, second
 is the implementation. Identify every deviation in spacing, color,
 typography, alignment, and missing elements. Rate fidelity 1-10."
@@ -321,7 +318,7 @@ typography, alignment, and missing elements. Rate fidelity 1-10."
 ### Example 3: "Check if this component looks good on mobile"
 
 ```
-image: [mobile-screenshot.png]
+[mobile-screenshot.png]
 prompt: "Review this mobile UI. Is text readable? Are touch targets
 large enough (≥44px)? Does anything overflow? Is the layout well-adapted
 to mobile width? Check contrast and spacing."

@@ -28,9 +28,12 @@ For new adapter work: see `.claude/skills/steps/explore-adapter.md`
 For refactoring: see `.claude/skills/steps/build-refactor.md`
 
 ### 4. Validate
-- Run: `.venv/bin/pytest tests/ -x -q`
-- Run: `.venv/bin/ruff check src/ tests/`
-- Run: `.venv/bin/mypy src/`
+- Run: `pytest tests/ -x -q`
+- Run: `ruff check src/ tests/`
+- Treat type checking as a separate, non-blocking CI baseline unless the task
+  explicitly asks for mypy cleanup
+- For record/replay behavior, run the relevant test once with `--ac-record`
+  and once with `--ac-replay`
 - If any test fails, fix it before proceeding
 - If you added new public functionality, write at least one test (happy path + edge case)
 
