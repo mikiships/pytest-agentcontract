@@ -224,7 +224,8 @@ Looks good: [What's working]
 
 ## Review Prompts for Vision Model
 
-Use these prompts with the `image` tool depending on what you need:
+Use these prompt templates with the active vision capability depending on what
+you need:
 
 ### General Review
 ```
