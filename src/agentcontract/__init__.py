@@ -1,6 +1,6 @@
 """pytest-agentcontract: Deterministic CI tests for LLM agent trajectories."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 # Lazy imports to avoid circular dependencies and speed up pytest plugin loading.
 # The plugin.py entry point imports specific modules directly.
