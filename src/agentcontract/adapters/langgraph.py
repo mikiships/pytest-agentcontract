@@ -157,10 +157,12 @@ def _get_tool_calls(msg: Any) -> list[dict[str, Any]] | None:
             call_id = getattr(tc, "id", "")
 
         if name:
-            calls.append({
-                "id": str(call_id) if call_id else "",
-                "function": str(name),
-                "arguments": args if isinstance(args, dict) else {},
-            })
+            calls.append(
+                {
+                    "id": str(call_id) if call_id else "",
+                    "function": str(name),
+                    "arguments": args if isinstance(args, dict) else {},
+                }
+            )
 
     return calls or None
