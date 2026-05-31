@@ -13,7 +13,7 @@
   <img src="docs/demo.gif" alt="pytest-agentcontract demo: record, replay, assert" width="600">
 </p>
 
-Your agent calls `lookup_order`, then `check_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
+Your agent calls `lookup_order`, then `check_refund_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
 
 ```bash
 # Record a trajectory (hits real APIs once)
@@ -25,11 +25,11 @@ pytest --ac-replay
 
 ```
 tests/scenarios/refund-eligible.agentrun.json
-├── turn 0: user → "I want a refund for order 123"
-├── turn 1: assistant → lookup_order(order_id="123")
-├── turn 2: assistant → check_eligibility(order_id="123")
-├── turn 3: assistant → process_refund(order_id="123", amount=49.99)
-└── turn 4: assistant → "Your refund of $49.99 has been processed."
+├── turn 0: user → "I'd like a refund for order ORD-123 please"
+├── turn 1: assistant → lookup_order(order_id="ORD-123")
+├── turn 2: assistant → check_refund_eligibility(order_id="ORD-123")
+├── turn 3: user → "Yes, please process the refund."
+└── turn 4: assistant → process_refund(order_id="ORD-123", amount=79.99)
 ```
 
 ## Install
@@ -57,11 +57,15 @@ def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
     if ac_mode == "record":
         # Runs your real agent, records the trajectory
         run_my_agent(ac_recorder)
+        run = ac_recorder.run
     elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+        # Loads the recorded cassette -- no network, no tokens
+        run = ac_replay_engine.recorded_run
+    else:
+        run_my_agent(ac_recorder)
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
+    contract = ac_check_contract(run)
     assert contract.passed, contract.failures()
 ```
 
@@ -78,6 +82,17 @@ pytest --ac-record -k test_refund_flow
 pytest --ac-replay
 # Deterministic. No API keys. No flakes. Sub-second.
 ```
+
+## Documentation
+
+User-facing guides live in [`docs/`](docs/README.md):
+
+- [Getting started](docs/getting-started.md)
+- [Record and replay](docs/record-replay.md)
+- [Assertions and policies](docs/assertions-and-policies.md)
+- [Configuration](docs/configuration.md)
+- [Adapters and interceptors](docs/adapters.md)
+- [CLI](docs/cli.md)
 
 ## SDK Auto-Recording
 
@@ -156,7 +171,7 @@ defaults:
 policies:
   - name: allowed-tools
     type: tool_allowlist
-    tools: [lookup_order, check_eligibility, process_refund]
+    tools: [lookup_order, check_refund_eligibility, process_refund]
 
   - name: confirm-before-refund
     type: requires_confirmation
