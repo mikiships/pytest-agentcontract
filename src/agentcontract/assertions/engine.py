@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-import jsonschema
+import jsonschema  # type: ignore[import-untyped]
 
 from agentcontract.config import AssertionSpec, PolicySpec
 from agentcontract.types import AgentRun, TurnRole
@@ -318,6 +318,7 @@ class AssertionEngine:
         policy_checkers = {
             "tool_allowlist": self._policy_tool_allowlist,
             "requires_confirmation": self._policy_requires_confirmation,
+            "pii_exposure": self._policy_pii_exposure,
         }
 
         policy_type = str(getattr(policy.type, "value", policy.type))
@@ -365,8 +366,7 @@ class AssertionEngine:
                             assertion=spec,
                             passed=False,
                             message=(
-                                f"Tool '{tc.function}' called at turn 0 "
-                                f"with no prior confirmation"
+                                f"Tool '{tc.function}' called at turn 0 with no prior confirmation"
                             ),
                         )
                     prev = run.turns[i - 1]
@@ -381,3 +381,28 @@ class AssertionEngine:
                         )
 
         return AssertionResult(assertion=spec, passed=True)
+
+    def _policy_pii_exposure(self, run: AgentRun, policy: PolicySpec) -> AssertionResult:
+        """Fail when recorded trajectory surfaces contain blocked PII categories."""
+        from agentcontract.pii import scan_agent_run
+
+        spec = AssertionSpec(type=f"policy:{policy.name}", target="trajectory")
+        scan = scan_agent_run(run, categories=policy.block or None)
+        if not scan.has_findings:
+            return AssertionResult(assertion=spec, passed=True)
+
+        examples = [
+            f"{finding.category} at {finding.location}: {finding.snippet}"
+            for finding in scan.findings[:3]
+        ]
+        remaining = scan.finding_count - len(examples)
+        suffix = f"; {remaining} more" if remaining else ""
+        return AssertionResult(
+            assertion=spec,
+            passed=False,
+            message=(
+                f"PII exposure detected ({scan.finding_count} finding(s)): "
+                f"{'; '.join(examples)}{suffix}"
+            ),
+            details={"findings": [finding.to_dict() for finding in scan.findings]},
+        )

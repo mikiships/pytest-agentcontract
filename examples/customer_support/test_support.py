@@ -13,13 +13,13 @@ Run these tests:
 
 from __future__ import annotations
 
-import pytest
-
-from agentcontract.config import AssertionSpec, PolicySpec
-
 # Import our example agent (relative import for running from repo root)
 import sys
 from pathlib import Path
+
+import pytest
+
+from agentcontract.config import AssertionSpec, PolicySpec
 
 sys.path.insert(0, str(Path(__file__).parent))
 from agent import run_support_agent  # noqa: E402

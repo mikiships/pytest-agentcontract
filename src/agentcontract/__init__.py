@@ -13,6 +13,10 @@ def __getattr__(name: str):  # noqa: ANN001
         "ReplayEngine": "agentcontract.replay.engine",
         "AssertionEngine": "agentcontract.assertions.engine",
         "AgentContractConfig": "agentcontract.config",
+        "PIIFinding": "agentcontract.pii",
+        "PIIScanResult": "agentcontract.pii",
+        "scan_agent_run": "agentcontract.pii",
+        "scan_cassette_path": "agentcontract.pii",
     }
     if name in _lazy:
         import importlib
@@ -22,4 +26,13 @@ def __getattr__(name: str):  # noqa: ANN001
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-__all__ = ["Recorder", "ReplayEngine", "AssertionEngine", "AgentContractConfig"]
+__all__ = [
+    "Recorder",
+    "ReplayEngine",
+    "AssertionEngine",
+    "AgentContractConfig",
+    "PIIFinding",
+    "PIIScanResult",
+    "scan_agent_run",
+    "scan_cassette_path",
+]
