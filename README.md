@@ -161,6 +161,10 @@ policies:
   - name: confirm-before-refund
     type: requires_confirmation
     tools: [process_refund]
+
+  - name: no-recorded-pii
+    type: pii_exposure
+    block: [email, phone, ssn, credit_card]  # omit block to check all supported categories
 ```
 
 Generate a starter config:
@@ -186,6 +190,12 @@ agentcontract init
 |--------|-----------------|
 | `tool_allowlist` | Only listed tools may be called |
 | `requires_confirmation` | Protected tools must follow user confirmation |
+| `pii_exposure` | Recorded trajectories must not contain blocked PII categories |
+
+`pii_exposure` scans recorded metadata, turn content, tool call arguments, and tool call results.
+Supported categories are `email`, `phone` (US formatted numbers), `ssn`, and `credit_card`
+(Luhn-valid card numbers only). Findings report only masked snippets, never full raw PII values.
+Use `block` to check specific categories; omit it or leave it empty to check all supported categories.
 
 ## Target Syntax
 
@@ -200,8 +210,15 @@ agentcontract init
 ```bash
 agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
+agentcontract scan-pii tests/scenarios/         # Scan cassettes for PII exposure
+agentcontract scan-pii --json cassette.agentrun.json
 agentcontract init                               # Starter config
 ```
+
+`scan-pii` accepts either one cassette file or a directory. Directories are scanned recursively for
+`*.agentrun.json` files. Text output is concise and safe to print in CI logs: category, cassette
+path, trajectory location, and a masked snippet. The command exits with code `1` when findings are
+present, so it can be used as a CI gate; clean scans exit `0`.
 
 ## Why Not VCR / pytest-recording?
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -26,6 +27,19 @@ def main(argv: list[str] | None = None) -> int:
     # init command
     subparsers.add_parser("init", help="Create a starter agentcontract.yml")
 
+    # scan-pii command
+    scan_pii_parser = subparsers.add_parser(
+        "scan-pii",
+        help="Scan cassette files for potential PII exposure",
+    )
+    scan_pii_parser.add_argument("path", type=Path, help="Path to a cassette file or directory")
+    scan_pii_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Print machine-readable JSON output",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "info":
@@ -34,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_validate(args.path)
     elif args.command == "init":
         return _cmd_init()
+    elif args.command == "scan-pii":
+        return _cmd_scan_pii(args.path, json_output=args.json_output)
     else:
         parser.print_help()
         return 0
@@ -128,6 +144,38 @@ reporting:
         return 1
     print(f"Created {target}")
     return 0
+
+
+def _cmd_scan_pii(path: Path, *, json_output: bool = False) -> int:
+    """Scan cassette files for potential PII exposure."""
+    from agentcontract.pii import scan_cassette_path
+
+    try:
+        result = scan_cassette_path(path)
+    except FileNotFoundError:
+        print(f"Error: {path} not found", file=sys.stderr)
+        return 1
+    except (OSError, ValueError, TypeError) as e:
+        print(
+            f"Error: failed to scan '{path}' ({type(e).__name__}): {e}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if json_output:
+        print(json.dumps(result.to_dict(), indent=2))
+        return 1 if result.has_findings else 0
+
+    cassette_count = len(result.scanned_files)
+    if not result.has_findings:
+        print(f"Scanned {cassette_count} cassette(s); no PII findings.")
+        return 0
+
+    print(f"PII findings: {result.finding_count} finding(s) across {cassette_count} cassette(s)")
+    for finding in result.findings:
+        cassette = finding.cassette_path or str(path)
+        print(f"- {finding.category} {cassette} {finding.location}: {finding.snippet}")
+    return 1
 
 
 if __name__ == "__main__":
