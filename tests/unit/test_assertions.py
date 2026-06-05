@@ -41,6 +41,28 @@ def _make_run() -> AgentRun:
     )
 
 
+def _make_pii_run() -> AgentRun:
+    return AgentRun(
+        metadata=RunMetadata(scenario="test-pii"),
+        turns=[
+            Turn(index=0, role=TurnRole.USER, content="My email is alice@example.com"),
+            Turn(
+                index=1,
+                role=TurnRole.ASSISTANT,
+                content="I found your account.",
+                tool_calls=[
+                    ToolCall(
+                        id="tc1",
+                        function="lookup_customer",
+                        arguments={"customer_id": "CUST-123"},
+                        result={"ssn": "123-45-6789"},
+                    )
+                ],
+            ),
+        ],
+    )
+
+
 class TestContains:
     def test_pass(self):
         engine = AssertionEngine()
@@ -333,6 +355,85 @@ class TestRequiresConfirmationPolicy:
             ],
         )
         assert not result.passed
+
+
+class TestPIIExposurePolicy:
+    def test_pass_when_no_pii_is_recorded(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            policies=[PolicySpec(name="no-pii", type="pii_exposure")],
+        )
+
+        assert result.passed
+
+    def test_fail_when_pii_is_recorded_with_masked_message(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_pii_run(),
+            policies=[PolicySpec(name="no-pii", type="pii_exposure")],
+        )
+
+        assert not result.passed
+        message = result.results[0].message
+        assert "PII exposure detected" in message
+        assert "alice@example.com" not in message
+        assert "123-45-6789" not in message
+        assert "a***@e***.com" in message
+        assert result.results[0].details["findings"][0]["snippet"] == "a***@e***.com"
+
+    def test_block_list_limits_pii_categories_to_check(self):
+        engine = AssertionEngine()
+
+        ssn_only = engine.check(
+            _make_pii_run(),
+            policies=[PolicySpec(name="no-ssn", type="pii_exposure", block=["ssn"])],
+        )
+        email_only = engine.check(
+            _make_pii_run(),
+            policies=[PolicySpec(name="no-email", type="pii_exposure", block=["email"])],
+        )
+        card_only = engine.check(
+            _make_pii_run(),
+            policies=[PolicySpec(name="no-card", type="pii_exposure", block=["credit_card"])],
+        )
+
+        assert not ssn_only.passed
+        assert not email_only.passed
+        assert card_only.passed
+
+    def test_pii_key_locations_are_masked_even_when_category_is_not_blocked(self):
+        run = AgentRun(
+            metadata=RunMetadata(scenario="pii-key-location"),
+            turns=[
+                Turn(
+                    index=0,
+                    role=TurnRole.ASSISTANT,
+                    tool_calls=[
+                        ToolCall(
+                            id="tc1",
+                            function="lookup_customer",
+                            arguments={"alice@example.com": {"ssn": "123-45-6789"}},
+                        )
+                    ],
+                )
+            ],
+        )
+        engine = AssertionEngine()
+
+        result = engine.check(
+            run,
+            policies=[PolicySpec(name="no-ssn", type="pii_exposure", block=["ssn"])],
+        )
+
+        assert not result.passed
+        message = result.results[0].message
+        details = result.results[0].details
+        assert "123-45-6789" not in message
+        assert "alice@example.com" not in message
+        assert details["findings"][0]["location"] == (
+            "turns[0].tool_calls[0].arguments[<key:0>].ssn"
+        )
 
 
 class TestPolicyErrors:
