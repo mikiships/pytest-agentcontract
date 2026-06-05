@@ -161,6 +161,10 @@ policies:
   - name: confirm-before-refund
     type: requires_confirmation
     tools: [process_refund]
+
+  - name: no-pii
+    type: pii_exposure
+    block: [email, phone, ssn, credit_card]  # omit block to scan all supported categories
 ```
 
 Generate a starter config:
@@ -186,6 +190,36 @@ agentcontract init
 |--------|-----------------|
 | `tool_allowlist` | Only listed tools may be called |
 | `requires_confirmation` | Protected tools must follow user confirmation |
+| `pii_exposure` | Recorded trajectories must not expose supported PII categories |
+
+## PII Exposure Scanning
+
+`agentcontract` can scan recorded `.agentrun.json` cassettes for high-confidence PII exposure in metadata, turn content, tool-call names, tool arguments, and tool results.
+
+Supported categories:
+
+- `email`
+- `phone` for US phone numbers
+- `ssn`
+- `credit_card` with Luhn validation
+
+Scanner output is safe to print in CI: findings include the category, cassette path, trajectory location, and a masked snippet only. Raw detected values are not printed. Dictionary keys are scanned too, and PII-bearing keys are replaced with placeholders in locations such as `turns[1].tool_calls[0].arguments[<key:0>].__key__`.
+
+```bash
+agentcontract scan-pii tests/scenarios
+agentcontract scan-pii tests/scenarios --json
+```
+
+When scanning a directory, `scan-pii` recursively scans `*.agentrun.json` files. The command exits with status `1` when findings are present, so it can be used as a CI gate.
+
+Add the policy to `agentcontract.yml` to enforce the same scanner during contract checks:
+
+```yaml
+policies:
+  - name: no-pii
+    type: pii_exposure
+    block: [email, ssn]  # omit block to scan all supported categories
+```
 
 ## Target Syntax
 
@@ -200,6 +234,7 @@ agentcontract init
 ```bash
 agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
+agentcontract scan-pii tests/scenarios          # PII exposure scan
 agentcontract init                               # Starter config
 ```
 
