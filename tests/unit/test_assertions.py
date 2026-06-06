@@ -41,6 +41,28 @@ def _make_run() -> AgentRun:
     )
 
 
+def _make_pii_run() -> AgentRun:
+    return AgentRun(
+        metadata=RunMetadata(scenario="test-pii"),
+        turns=[
+            Turn(index=0, role=TurnRole.USER, content="My email is alice@example.com"),
+            Turn(
+                index=1,
+                role=TurnRole.ASSISTANT,
+                content="I found your account.",
+                tool_calls=[
+                    ToolCall(
+                        id="tc1",
+                        function="lookup_customer",
+                        arguments={"customer_id": "CUST-123"},
+                        result={"ssn": "123-45-6789"},
+                    )
+                ],
+            ),
+        ],
+    )
+
+
 class TestContains:
     def test_pass(self):
         engine = AssertionEngine()
@@ -333,6 +355,210 @@ class TestRequiresConfirmationPolicy:
             ],
         )
         assert not result.passed
+
+
+class TestNoPIIAssertion:
+    def test_pass_when_clean_run_has_no_pii(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            assertions=[AssertionSpec(type="no_pii")],
+        )
+
+        assert result.passed
+        assert result.results[0].details["finding_count"] == 0
+        assert result.results[0].details["paths"] == []
+
+    def test_fail_when_assistant_content_has_pii(self):
+        run = AgentRun(
+            metadata=RunMetadata(scenario="assistant-pii"),
+            turns=[
+                Turn(index=0, role=TurnRole.USER, content="What is my account status?"),
+                Turn(
+                    index=1,
+                    role=TurnRole.ASSISTANT,
+                    content="Your account email is alice@example.com",
+                ),
+            ],
+        )
+        engine = AssertionEngine()
+
+        result = engine.check(run, assertions=[AssertionSpec(type="no_pii")])
+
+        assert not result.passed
+        assertion = result.results[0]
+        assert assertion.details["finding_count"] == 1
+        assert assertion.details["paths"] == ["turns[1].content"]
+        assert assertion.details["category_counts"] == {"email": 1}
+        assert "alice@example.com" not in assertion.message
+        assert "a***@e***.com" in assertion.message
+
+    def test_fail_when_tool_arguments_and_results_have_pii(self):
+        run = AgentRun(
+            metadata=RunMetadata(scenario="tool-pii"),
+            turns=[
+                Turn(
+                    index=0,
+                    role=TurnRole.ASSISTANT,
+                    content="Looking up customer.",
+                    tool_calls=[
+                        ToolCall(
+                            id="tc1",
+                            function="lookup_customer",
+                            arguments={"email": "alice@example.com"},
+                            result={"phone": "212-555-0198"},
+                        )
+                    ],
+                )
+            ],
+        )
+        engine = AssertionEngine()
+
+        result = engine.check(run, assertions=[AssertionSpec(type="no_pii")])
+
+        assert not result.passed
+        details = result.results[0].details
+        assert details["finding_count"] == 2
+        assert details["paths"] == [
+            "turns[0].tool_calls[0].arguments.email",
+            "turns[0].tool_calls[0].result.phone",
+        ]
+        assert details["category_counts"] == {"email": 1, "phone": 1}
+
+    def test_scans_only_resolved_target_when_target_is_set(self):
+        run = AgentRun(
+            metadata=RunMetadata(scenario="target-scoped-pii"),
+            turns=[
+                Turn(index=0, role=TurnRole.USER, content="alice@example.com"),
+                Turn(index=1, role=TurnRole.ASSISTANT, content="No account details here."),
+            ],
+        )
+        engine = AssertionEngine()
+
+        final_only = engine.check(
+            run,
+            assertions=[AssertionSpec(type="no_pii", target="final_response")],
+        )
+        full_run = engine.check(
+            run,
+            assertions=[AssertionSpec(type="no_pii", target="full_run")],
+        )
+
+        assert final_only.passed
+        assert not full_run.passed
+        assert full_run.results[0].details["paths"] == ["turns[0].content"]
+
+    def test_block_list_limits_categories_checked(self):
+        engine = AssertionEngine()
+
+        ssn_only = engine.check(
+            _make_pii_run(),
+            assertions=[AssertionSpec(type="no_pii", block=["ssn"])],
+        )
+        card_only = engine.check(
+            _make_pii_run(),
+            assertions=[AssertionSpec(type="no_pii", block=["credit_card"])],
+        )
+
+        assert not ssn_only.passed
+        assert ssn_only.results[0].details["category_counts"] == {"ssn": 1}
+        assert card_only.passed
+
+
+class TestPIIExposurePolicy:
+    def test_pass_when_no_pii_is_recorded(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            policies=[PolicySpec(name="no-pii", type="pii_exposure")],
+        )
+
+        assert result.passed
+
+    def test_fail_when_pii_is_recorded_with_masked_message(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_pii_run(),
+            policies=[PolicySpec(name="no-pii", type="pii_exposure")],
+        )
+
+        assert not result.passed
+        message = result.results[0].message
+        assert "PII exposure detected" in message
+        assert "alice@example.com" not in message
+        assert "123-45-6789" not in message
+        assert "a***@e***.com" in message
+        assert result.results[0].details["findings"][0]["snippet"] == "a***@e***.com"
+
+    def test_block_list_limits_pii_categories_to_check(self):
+        engine = AssertionEngine()
+
+        ssn_only = engine.check(
+            _make_pii_run(),
+            policies=[PolicySpec(name="no-ssn", type="pii_exposure", block=["ssn"])],
+        )
+        email_only = engine.check(
+            _make_pii_run(),
+            policies=[PolicySpec(name="no-email", type="pii_exposure", block=["email"])],
+        )
+        card_only = engine.check(
+            _make_pii_run(),
+            policies=[PolicySpec(name="no-card", type="pii_exposure", block=["credit_card"])],
+        )
+
+        assert not ssn_only.passed
+        assert not email_only.passed
+        assert card_only.passed
+
+    def test_pii_key_locations_are_masked_even_when_category_is_not_blocked(self):
+        run = AgentRun(
+            metadata=RunMetadata(scenario="pii-key-location"),
+            turns=[
+                Turn(
+                    index=0,
+                    role=TurnRole.ASSISTANT,
+                    tool_calls=[
+                        ToolCall(
+                            id="tc1",
+                            function="lookup_customer",
+                            arguments={"alice@example.com": {"ssn": "123-45-6789"}},
+                        )
+                    ],
+                )
+            ],
+        )
+        engine = AssertionEngine()
+
+        result = engine.check(
+            run,
+            policies=[PolicySpec(name="no-ssn", type="pii_exposure", block=["ssn"])],
+        )
+
+        assert not result.passed
+        message = result.results[0].message
+        details = result.results[0].details
+        assert "123-45-6789" not in message
+        assert "alice@example.com" not in message
+        assert details["findings"][0]["location"] == (
+            "turns[0].tool_calls[0].arguments[<key:0>].ssn"
+        )
+
+    def test_unknown_category_error_does_not_echo_raw_pii(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            policies=[
+                PolicySpec(
+                    name="bad-pii-category",
+                    type="pii_exposure",
+                    block=["alice@example.com"],
+                )
+            ],
+        )
+
+        assert not result.passed
+        assert "Policy error:" in result.results[0].message
+        assert "alice@example.com" not in result.results[0].message
 
 
 class TestPolicyErrors:

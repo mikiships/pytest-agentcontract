@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-import jsonschema
+import jsonschema  # type: ignore[import-untyped]
 
 from agentcontract.config import AssertionSpec, PolicySpec
 from agentcontract.types import AgentRun, TurnRole
@@ -79,6 +79,7 @@ class AssertionEngine:
             "not_called": self._check_not_called,
             "called_with": self._check_called_with,
             "called_count": self._check_called_count,
+            "no_pii": self._check_no_pii,
         }
 
         assertion_type = str(getattr(spec.type, "value", spec.type))
@@ -313,11 +314,34 @@ class AssertionEngine:
             else f"Tool '{func_name}' called {actual_count} times, expected {expected_count}",
         )
 
+    def _check_no_pii(self, run: AgentRun, spec: AssertionSpec) -> AssertionResult:
+        """Assert that a run or resolved target has no supported PII findings."""
+        from agentcontract.pii import scan_run, scan_value
+
+        target = str(getattr(spec.target, "value", spec.target) or "full_run")
+        categories = spec.block or None
+
+        if target == "full_run":
+            scan = scan_run(run, categories=categories)
+        else:
+            actual = self._resolve_target(run, target)
+            if actual is None:
+                return AssertionResult(
+                    assertion=spec,
+                    passed=False,
+                    message=f"Target '{spec.target}' resolved to None",
+                    details={"finding_count": 0, "paths": [], "category_counts": {}},
+                )
+            scan = scan_value(actual, location=target, categories=categories)
+
+        return self._pii_scan_result_to_assertion_result(spec, scan)
+
     def _check_policy(self, run: AgentRun, policy: PolicySpec) -> AssertionResult:
         """Check a policy against the trajectory."""
         policy_checkers = {
             "tool_allowlist": self._policy_tool_allowlist,
             "requires_confirmation": self._policy_requires_confirmation,
+            "pii_exposure": self._policy_pii_exposure,
         }
 
         policy_type = str(getattr(policy.type, "value", policy.type))
@@ -380,3 +404,45 @@ class AssertionEngine:
                         )
 
         return AssertionResult(assertion=spec, passed=True)
+
+    def _policy_pii_exposure(self, run: AgentRun, policy: PolicySpec) -> AssertionResult:
+        """Fail when recorded trajectory surfaces contain blocked PII categories."""
+        from agentcontract.pii import scan_run
+
+        spec = AssertionSpec(type=f"policy:{policy.name}", target="trajectory")
+        scan = scan_run(run, categories=policy.block or None)
+        return self._pii_scan_result_to_assertion_result(spec, scan)
+
+    def _pii_scan_result_to_assertion_result(
+        self, spec: AssertionSpec, scan: Any
+    ) -> AssertionResult:
+        """Convert a PII scan into a sanitized assertion result."""
+        category_counts: dict[str, int] = {}
+        for finding in scan.findings:
+            category_counts[finding.category] = category_counts.get(finding.category, 0) + 1
+
+        details = {
+            "finding_count": scan.finding_count,
+            "paths": [finding.location for finding in scan.findings],
+            "category_counts": category_counts,
+            "findings": [finding.to_dict() for finding in scan.findings],
+        }
+
+        if not scan.has_findings:
+            return AssertionResult(assertion=spec, passed=True, details=details)
+
+        examples = [
+            f"{finding.category} at {finding.location}: {finding.snippet}"
+            for finding in scan.findings[:3]
+        ]
+        remaining = scan.finding_count - len(examples)
+        suffix = f"; {remaining} more" if remaining else ""
+        return AssertionResult(
+            assertion=spec,
+            passed=False,
+            message=(
+                f"PII exposure detected ({scan.finding_count} finding(s)): "
+                f"{'; '.join(examples)}{suffix}"
+            ),
+            details=details,
+        )

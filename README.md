@@ -148,6 +148,9 @@ defaults:
     - type: contains
       target: final_response
       value: "refund"
+    - type: no_pii
+      target: full_run
+      block: [email, phone, ssn, credit_card]  # omit block to scan all supported categories
     - type: called_with
       target: "tool:process_refund"
       schema:
@@ -179,6 +182,7 @@ agentcontract init
 | `not_called` | Tool was NOT invoked |
 | `called_with` | Tool called with specific arguments |
 | `called_count` | Exact invocation count |
+| `no_pii` | No supported PII categories found in the run or target |
 
 ## Policies
 
@@ -186,6 +190,40 @@ agentcontract init
 |--------|-----------------|
 | `tool_allowlist` | Only listed tools may be called |
 | `requires_confirmation` | Protected tools must follow user confirmation |
+
+## PII Exposure Scanning
+
+`agentcontract` can scan recorded `.agentrun.json` cassettes for high-confidence PII exposure in metadata text, turn content, tool-call names, tool arguments, and tool results. It reports findings only; it does not redact or mutate recordings.
+
+Supported categories:
+
+- `email`
+- `phone` for US phone numbers
+- `ssn`
+- `credit_card` with Luhn validation
+
+Scanner output is safe to print in CI: findings include the category, cassette path, trajectory location, and a masked snippet only. Raw detected values are not printed. Dictionary keys are scanned too, and PII-bearing keys are replaced with placeholders in locations such as `turns[1].tool_calls[0].arguments[<key:0>].__key__`.
+
+```bash
+agentcontract scan-pii tests/scenarios/*.agentrun.json
+agentcontract scan-pii tests/scenarios support.agentrun.json --json
+```
+
+`scan-pii` accepts one or more cassette files, directories, or glob patterns. When scanning a directory, it recursively scans `*.agentrun.json` files. The command exits with status `1` when findings are present, so it can be used as a CI gate.
+
+Add a `no_pii` assertion to `agentcontract.yml` to enforce the same scanner during contract checks:
+
+```yaml
+defaults:
+  assertions:
+    - type: no_pii
+      target: full_run
+      block: [email, ssn]  # omit block to scan all supported categories
+```
+
+If `target` is omitted or set to `full_run`, the scanner checks the full `AgentRun`. Any other target uses the normal target syntax below and scans only the resolved value. `block` limits the categories checked.
+
+This is a conservative scanner for likely exposure in recorded agent trajectories, not a compliance guarantee or a replacement for privacy review.
 
 ## Target Syntax
 
@@ -200,6 +238,7 @@ agentcontract init
 ```bash
 agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
+agentcontract scan-pii tests/scenarios/*.agentrun.json  # PII exposure scan
 agentcontract init                               # Starter config
 ```
 
