@@ -5,11 +5,15 @@ from pathlib import Path
 import pytest
 
 from agentcontract.pii import (
+    PiiFinding,
+    PiiScanResult,
     luhn_valid,
     scan_agent_run,
     scan_cassette_file,
     scan_payload,
+    scan_run,
     scan_text,
+    scan_value,
 )
 from agentcontract.serialization import save_run
 from agentcontract.types import AgentRun, RunMetadata, ToolCall, Turn, TurnRole
@@ -24,6 +28,21 @@ def test_scan_text_detects_email() -> None:
     assert finding.location == "turns[0].content"
     assert finding.snippet == "a***@e***.com"
     assert "alice@example.com" not in finding.snippet
+
+
+def test_public_scan_run_and_scan_value_api_names() -> None:
+    value_result = scan_value({"email": "alice@example.com"}, location="payload")
+    run_result = scan_run(
+        AgentRun(
+            metadata=RunMetadata(scenario="pii-api"),
+            turns=[Turn(index=0, role=TurnRole.USER, content="Call 212-555-0198")],
+        )
+    )
+
+    assert isinstance(value_result, PiiScanResult)
+    assert isinstance(value_result.findings[0], PiiFinding)
+    assert value_result.findings[0].location == "payload.email"
+    assert run_result.findings[0].location == "turns[0].content"
 
 
 def test_scan_text_detects_us_phone_number() -> None:

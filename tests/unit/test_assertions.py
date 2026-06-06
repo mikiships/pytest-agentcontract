@@ -357,6 +357,114 @@ class TestRequiresConfirmationPolicy:
         assert not result.passed
 
 
+class TestNoPIIAssertion:
+    def test_pass_when_clean_run_has_no_pii(self):
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            assertions=[AssertionSpec(type="no_pii")],
+        )
+
+        assert result.passed
+        assert result.results[0].details["finding_count"] == 0
+        assert result.results[0].details["paths"] == []
+
+    def test_fail_when_assistant_content_has_pii(self):
+        run = AgentRun(
+            metadata=RunMetadata(scenario="assistant-pii"),
+            turns=[
+                Turn(index=0, role=TurnRole.USER, content="What is my account status?"),
+                Turn(
+                    index=1,
+                    role=TurnRole.ASSISTANT,
+                    content="Your account email is alice@example.com",
+                ),
+            ],
+        )
+        engine = AssertionEngine()
+
+        result = engine.check(run, assertions=[AssertionSpec(type="no_pii")])
+
+        assert not result.passed
+        assertion = result.results[0]
+        assert assertion.details["finding_count"] == 1
+        assert assertion.details["paths"] == ["turns[1].content"]
+        assert assertion.details["category_counts"] == {"email": 1}
+        assert "alice@example.com" not in assertion.message
+        assert "a***@e***.com" in assertion.message
+
+    def test_fail_when_tool_arguments_and_results_have_pii(self):
+        run = AgentRun(
+            metadata=RunMetadata(scenario="tool-pii"),
+            turns=[
+                Turn(
+                    index=0,
+                    role=TurnRole.ASSISTANT,
+                    content="Looking up customer.",
+                    tool_calls=[
+                        ToolCall(
+                            id="tc1",
+                            function="lookup_customer",
+                            arguments={"email": "alice@example.com"},
+                            result={"phone": "212-555-0198"},
+                        )
+                    ],
+                )
+            ],
+        )
+        engine = AssertionEngine()
+
+        result = engine.check(run, assertions=[AssertionSpec(type="no_pii")])
+
+        assert not result.passed
+        details = result.results[0].details
+        assert details["finding_count"] == 2
+        assert details["paths"] == [
+            "turns[0].tool_calls[0].arguments.email",
+            "turns[0].tool_calls[0].result.phone",
+        ]
+        assert details["category_counts"] == {"email": 1, "phone": 1}
+
+    def test_scans_only_resolved_target_when_target_is_set(self):
+        run = AgentRun(
+            metadata=RunMetadata(scenario="target-scoped-pii"),
+            turns=[
+                Turn(index=0, role=TurnRole.USER, content="alice@example.com"),
+                Turn(index=1, role=TurnRole.ASSISTANT, content="No account details here."),
+            ],
+        )
+        engine = AssertionEngine()
+
+        final_only = engine.check(
+            run,
+            assertions=[AssertionSpec(type="no_pii", target="final_response")],
+        )
+        full_run = engine.check(
+            run,
+            assertions=[AssertionSpec(type="no_pii", target="full_run")],
+        )
+
+        assert final_only.passed
+        assert not full_run.passed
+        assert full_run.results[0].details["paths"] == ["turns[0].content"]
+
+    def test_block_list_limits_categories_checked(self):
+        engine = AssertionEngine()
+
+        ssn_only = engine.check(
+            _make_pii_run(),
+            assertions=[AssertionSpec(type="no_pii", block=["ssn"])],
+        )
+        card_only = engine.check(
+            _make_pii_run(),
+            assertions=[AssertionSpec(type="no_pii", block=["credit_card"])],
+        )
+
+        assert not ssn_only.passed
+        assert ssn_only.results[0].details["category_counts"] == {"ssn": 1}
+        assert card_only.passed
+
+
 class TestPIIExposurePolicy:
     def test_pass_when_no_pii_is_recorded(self):
         engine = AssertionEngine()

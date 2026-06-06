@@ -54,6 +54,39 @@ def test_scan_pii_returns_nonzero_and_masks_findings(tmp_path: Path, capsys) -> 
     assert "alice@example.com" not in captured.out
 
 
+def test_scan_pii_accepts_multiple_input_files(tmp_path: Path, capsys) -> None:
+    clean = tmp_path / "clean.agentrun.json"
+    pii = tmp_path / "pii.agentrun.json"
+    _write_cassette(clean, "No sensitive customer details here")
+    _write_cassette(pii, "Customer email is alice@example.com")
+
+    exit_code = main(["scan-pii", str(clean), str(pii)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "1 finding(s) across 2 cassette(s)" in captured.out
+    assert str(pii) in captured.out
+    assert "alice@example.com" not in captured.out
+
+
+def test_scan_pii_accepts_glob_input(tmp_path: Path, capsys) -> None:
+    clean = tmp_path / "clean.agentrun.json"
+    pii = tmp_path / "pii.agentrun.json"
+    ignored = tmp_path / "ignored.json"
+    _write_cassette(clean, "No sensitive customer details here")
+    _write_cassette(pii, "Call 212-555-0198")
+    ignored.write_text('{"content":"alice@example.com"}')
+
+    exit_code = main(["scan-pii", str(tmp_path / "*.agentrun.json")])
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "1 finding(s) across 2 cassette(s)" in captured.out
+    assert "phone" in captured.out
+    assert str(pii) in captured.out
+    assert "ignored.json" not in captured.out
+
+
 def test_scan_pii_masks_pii_dict_key_locations(tmp_path: Path, capsys) -> None:
     cassette = tmp_path / "pii-key.agentrun.json"
     save_run(

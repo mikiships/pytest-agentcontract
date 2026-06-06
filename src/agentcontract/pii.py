@@ -45,7 +45,7 @@ _LOCATION_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 @dataclass
-class PIIFinding:
+class PiiFinding:
     """A safe-to-display PII finding."""
 
     category: str
@@ -64,10 +64,10 @@ class PIIFinding:
 
 
 @dataclass
-class PIIScanResult:
+class PiiScanResult:
     """Result of scanning one or more agent trajectories."""
 
-    findings: list[PIIFinding] = field(default_factory=list)
+    findings: list[PiiFinding] = field(default_factory=list)
     scanned_files: list[str] = field(default_factory=list)
 
     @property
@@ -80,7 +80,7 @@ class PIIScanResult:
         """Number of findings."""
         return len(self.findings)
 
-    def extend(self, other: PIIScanResult) -> None:
+    def extend(self, other: PiiScanResult) -> None:
         """Merge another scan result into this result."""
         self.findings.extend(other.findings)
         self.scanned_files.extend(other.scanned_files)
@@ -100,10 +100,26 @@ def scan_text(
     location: str = "",
     cassette_path: str | Path | None = None,
     categories: Iterable[str] | str | None = None,
-) -> PIIScanResult:
+) -> PiiScanResult:
     """Scan a text string for high-confidence PII patterns."""
     return _scan_text(
         text,
+        location=location,
+        cassette_path=_path_to_str(cassette_path),
+        categories=_normalize_categories(categories),
+    )
+
+
+def scan_value(
+    payload: Any,
+    *,
+    location: str = "",
+    cassette_path: str | Path | None = None,
+    categories: Iterable[str] | str | None = None,
+) -> PiiScanResult:
+    """Recursively scan dict/list/scalar payload keys and values."""
+    return _scan_payload(
+        payload,
         location=location,
         cassette_path=_path_to_str(cassette_path),
         categories=_normalize_categories(categories),
@@ -116,26 +132,26 @@ def scan_payload(
     location: str = "",
     cassette_path: str | Path | None = None,
     categories: Iterable[str] | str | None = None,
-) -> PIIScanResult:
-    """Recursively scan dict/list/scalar payload keys and values."""
-    return _scan_payload(
+) -> PiiScanResult:
+    """Compatibility alias for scan_value."""
+    return scan_value(
         payload,
         location=location,
-        cassette_path=_path_to_str(cassette_path),
-        categories=_normalize_categories(categories),
+        cassette_path=cassette_path,
+        categories=categories,
     )
 
 
-def scan_agent_run(
+def scan_run(
     run: AgentRun,
     *,
     cassette_path: str | Path | None = None,
     categories: Iterable[str] | str | None = None,
-) -> PIIScanResult:
+) -> PiiScanResult:
     """Scan the PII-relevant surfaces of an AgentRun."""
     normalized_categories = _normalize_categories(categories)
     normalized_path = _path_to_str(cassette_path)
-    result = PIIScanResult()
+    result = PiiScanResult()
 
     result.extend(
         _scan_payload(
@@ -204,16 +220,26 @@ def scan_agent_run(
     return result
 
 
+def scan_agent_run(
+    run: AgentRun,
+    *,
+    cassette_path: str | Path | None = None,
+    categories: Iterable[str] | str | None = None,
+) -> PiiScanResult:
+    """Compatibility alias for scan_run."""
+    return scan_run(run, cassette_path=cassette_path, categories=categories)
+
+
 def scan_cassette_file(
     path: str | Path,
     *,
     categories: Iterable[str] | str | None = None,
-) -> PIIScanResult:
+) -> PiiScanResult:
     """Load and scan one .agentrun.json cassette file."""
     from agentcontract.serialization import load_run
 
     cassette = Path(path)
-    result = scan_agent_run(load_run(cassette), cassette_path=cassette, categories=categories)
+    result = scan_run(load_run(cassette), cassette_path=cassette, categories=categories)
     result.scanned_files.append(str(cassette))
     return result
 
@@ -222,7 +248,7 @@ def scan_cassette_path(
     path: str | Path,
     *,
     categories: Iterable[str] | str | None = None,
-) -> PIIScanResult:
+) -> PiiScanResult:
     """Scan a cassette file or recursively scan a directory of cassette files."""
     target = Path(path)
     if target.is_file():
@@ -232,7 +258,7 @@ def scan_cassette_path(
     if not target.is_dir():
         raise ValueError(f"{target} is not a file or directory")
 
-    result = PIIScanResult()
+    result = PiiScanResult()
     for cassette in sorted(target.rglob("*.agentrun.json")):
         if cassette.is_file():
             result.extend(scan_cassette_file(cassette, categories=categories))
@@ -262,15 +288,15 @@ def _scan_text(
     location: str,
     cassette_path: str | None,
     categories: set[str],
-) -> PIIScanResult:
-    result = PIIScanResult()
+) -> PiiScanResult:
+    result = PiiScanResult()
     if not text or not categories:
         return result
 
     if "email" in categories:
         for match in _EMAIL_RE.finditer(text):
             result.findings.append(
-                PIIFinding(
+                PiiFinding(
                     category="email",
                     location=location,
                     snippet=_mask_email(match.group(0)),
@@ -281,7 +307,7 @@ def _scan_text(
     if "phone" in categories:
         for match in _PHONE_RE.finditer(text):
             result.findings.append(
-                PIIFinding(
+                PiiFinding(
                     category="phone",
                     location=location,
                     snippet=_mask_keep_last_digits(match.group(0), last=4),
@@ -292,7 +318,7 @@ def _scan_text(
     if "ssn" in categories:
         for match in _SSN_RE.finditer(text):
             result.findings.append(
-                PIIFinding(
+                PiiFinding(
                     category="ssn",
                     location=location,
                     snippet=_mask_keep_last_digits(match.group(0), last=4),
@@ -305,7 +331,7 @@ def _scan_text(
             candidate = match.group(0)
             if luhn_valid(candidate):
                 result.findings.append(
-                    PIIFinding(
+                    PiiFinding(
                         category="credit_card",
                         location=location,
                         snippet=_mask_keep_last_digits(candidate, last=4),
@@ -322,8 +348,8 @@ def _scan_payload(
     location: str,
     cassette_path: str | None,
     categories: set[str],
-) -> PIIScanResult:
-    result = PIIScanResult()
+) -> PiiScanResult:
+    result = PiiScanResult()
 
     if isinstance(payload, dict):
         for index, (key, value) in enumerate(payload.items()):
@@ -463,3 +489,8 @@ def _path_to_str(path: str | Path | None) -> str | None:
     if path is None:
         return None
     return str(path)
+
+
+# Backwards-compatible public aliases for callers that prefer acronym casing.
+PIIFinding = PiiFinding
+PIIScanResult = PiiScanResult
