@@ -2,6 +2,7 @@
 
 from agentcontract.assertions.engine import AssertionEngine
 from agentcontract.config import AssertionSpec, PolicySpec
+from agentcontract.security import CATEGORY_PROMPT_INJECTION, CATEGORY_SECRET
 from agentcontract.types import AgentRun, RunMetadata, ToolCall, Turn, TurnRole
 
 
@@ -333,6 +334,100 @@ class TestRequiresConfirmationPolicy:
             ],
         )
         assert not result.passed
+
+
+class TestSecurityFootgunPolicy:
+    def test_passes_on_clean_run(self) -> None:
+        engine = AssertionEngine()
+        result = engine.check(
+            _make_run(),
+            policies=[PolicySpec(name="security", type="security_footgun")],
+        )
+
+        assert result.passed
+        assert result.results[0].details["findings"] == []
+
+    def test_fails_on_detected_findings(self) -> None:
+        secret = "sk-1234567890abcdefghijkl"
+        run = AgentRun(
+            metadata=RunMetadata(scenario="secret-leak"),
+            turns=[
+                Turn(
+                    index=0,
+                    role=TurnRole.ASSISTANT,
+                    content=f"Use API key {secret}",
+                )
+            ],
+        )
+        engine = AssertionEngine()
+        result = engine.check(
+            run,
+            policies=[PolicySpec(name="security", type="security_footgun")],
+        )
+
+        assert not result.passed
+        assert "Security foot-guns detected" in result.results[0].message
+        assert result.results[0].details["blocked_findings"][0]["category"] == CATEGORY_SECRET
+
+    def test_details_do_not_leak_full_secret_values(self) -> None:
+        secret = "sk-1234567890abcdefghijkl"
+        run = AgentRun(
+            metadata=RunMetadata(scenario="redacted"),
+            turns=[Turn(index=0, role=TurnRole.ASSISTANT, content=f"token={secret}")],
+        )
+        engine = AssertionEngine()
+        result = engine.check(
+            run,
+            policies=[PolicySpec(name="security", type="security_footgun")],
+        )
+
+        assert not result.passed
+        assert secret not in str(result.results[0].details)
+
+    def test_block_filters_categories(self) -> None:
+        secret = "sk-1234567890abcdefghijkl"
+        run = AgentRun(
+            metadata=RunMetadata(scenario="filtered"),
+            turns=[Turn(index=0, role=TurnRole.ASSISTANT, content=f"token={secret}")],
+        )
+        engine = AssertionEngine()
+        result = engine.check(
+            run,
+            policies=[
+                PolicySpec(
+                    name="security",
+                    type="security_footgun",
+                    block=[CATEGORY_PROMPT_INJECTION],
+                )
+            ],
+        )
+
+        assert result.passed
+        assert result.results[0].details["blocked_findings"] == []
+        assert result.results[0].details["findings"][0]["category"] == CATEGORY_SECRET
+
+    def test_unknown_block_category_fails_closed(self) -> None:
+        secret = "sk-1234567890abcdefghijkl"
+        run = AgentRun(
+            metadata=RunMetadata(scenario="unknown-block-category"),
+            turns=[Turn(index=0, role=TurnRole.ASSISTANT, content=f"token={secret}")],
+        )
+        engine = AssertionEngine()
+        result = engine.check(
+            run,
+            policies=[
+                PolicySpec(
+                    name="security",
+                    type="security_footgun",
+                    block=["secrets"],
+                )
+            ],
+        )
+
+        assert not result.passed
+        assert "Unknown security foot-gun category" in result.results[0].message
+        assert result.results[0].details["invalid_categories"] == ["secrets"]
+        assert result.results[0].details["findings"][0]["category"] == CATEGORY_SECRET
 
 
 class TestPolicyErrors:
