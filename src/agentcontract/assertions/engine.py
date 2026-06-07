@@ -9,6 +9,11 @@ from typing import Any
 import jsonschema
 
 from agentcontract.config import AssertionSpec, PolicySpec
+from agentcontract.security import (
+    blocked_security_categories,
+    blocked_security_findings,
+    scan_security_footguns,
+)
 from agentcontract.types import AgentRun, TurnRole
 
 
@@ -318,6 +323,7 @@ class AssertionEngine:
         policy_checkers = {
             "tool_allowlist": self._policy_tool_allowlist,
             "requires_confirmation": self._policy_requires_confirmation,
+            "security_footgun": self._policy_security_footgun,
         }
 
         policy_type = str(getattr(policy.type, "value", policy.type))
@@ -380,3 +386,24 @@ class AssertionEngine:
                         )
 
         return AssertionResult(assertion=spec, passed=True)
+
+    def _policy_security_footgun(self, run: AgentRun, policy: PolicySpec) -> AssertionResult:
+        """Fail when blocked security foot-guns appear in the trajectory."""
+        spec = AssertionSpec(type=f"policy:{policy.name}", target="agent_run")
+        findings = scan_security_footguns(run)
+        blocked_findings = blocked_security_findings(findings, policy.block)
+        details = {
+            "blocked_categories": blocked_security_categories(policy.block),
+            "findings": [finding.to_dict() for finding in findings],
+            "blocked_findings": [finding.to_dict() for finding in blocked_findings],
+        }
+
+        if blocked_findings:
+            return AssertionResult(
+                assertion=spec,
+                passed=False,
+                message=f"Security foot-guns detected: {len(blocked_findings)} blocked finding(s)",
+                details=details,
+            )
+
+        return AssertionResult(assertion=spec, passed=True, details=details)

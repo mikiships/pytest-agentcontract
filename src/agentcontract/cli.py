@@ -23,6 +23,10 @@ def main(argv: list[str] | None = None) -> int:
     validate_parser = subparsers.add_parser("validate", help="Validate a cassette file")
     validate_parser.add_argument("path", type=Path, help="Path to .agentrun.json file")
 
+    # security command
+    security_parser = subparsers.add_parser("security", help="Scan a cassette for security issues")
+    security_parser.add_argument("path", type=Path, help="Path to .agentrun.json file")
+
     # init command
     subparsers.add_parser("init", help="Create a starter agentcontract.yml")
 
@@ -32,6 +36,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_info(args.path)
     elif args.command == "validate":
         return _cmd_validate(args.path)
+    elif args.command == "security":
+        return _cmd_security(args.path)
     elif args.command == "init":
         return _cmd_init()
     else:
@@ -84,6 +90,38 @@ def _cmd_validate(path: Path) -> int:
         return 1
 
 
+def _cmd_security(path: Path) -> int:
+    """Scan a cassette for security foot-guns."""
+    from agentcontract.security import blocked_security_findings, scan_security_footguns
+    from agentcontract.serialization import load_run
+
+    if not path.exists():
+        print(f"Error: {path} not found", file=sys.stderr)
+        return 1
+
+    try:
+        run = load_run(path)
+    except (OSError, ValueError, TypeError) as e:
+        print(
+            f"Error: failed to read cassette '{path}' ({type(e).__name__}): {e}",
+            file=sys.stderr,
+        )
+        return 1
+
+    findings = scan_security_footguns(run)
+    blocked_findings = blocked_security_findings(findings)
+    if not blocked_findings:
+        print(f"No security foot-guns found: {run.metadata.scenario} ({len(run.turns)} turns)")
+        return 0
+
+    print(f"Security foot-guns found: {len(blocked_findings)}")
+    for finding in blocked_findings:
+        print(f"- {finding.category} at {finding.location}: {finding.message}")
+        if finding.evidence:
+            print(f"  evidence: {finding.evidence}")
+    return 1
+
+
 def _cmd_init() -> int:
     """Create a starter agentcontract.yml in the current directory."""
     target = Path("agentcontract.yml")
@@ -111,6 +149,10 @@ policies:
   - name: allowed-tools
     type: tool_allowlist
     tools: []  # list your agent's tools here
+
+  - name: security-footguns
+    type: security_footgun
+    block: [secret, sensitive_argument, dangerous_command, prompt_injection]
 
 budgets:
   per_scenario:
