@@ -161,6 +161,10 @@ policies:
   - name: confirm-before-refund
     type: requires_confirmation
     tools: [process_refund]
+
+  - name: security-footguns
+    type: security_footgun
+    block: [secret, sensitive_argument, dangerous_command, prompt_injection]
 ```
 
 Generate a starter config:
@@ -186,6 +190,23 @@ agentcontract init
 |--------|-----------------|
 | `tool_allowlist` | Only listed tools may be called |
 | `requires_confirmation` | Protected tools must follow user confirmation |
+| `security_footgun` | Recorded trajectories must not contain common security anti-patterns |
+
+`security_footgun` scans recorded agent trajectories, not your repository source code. It looks
+at turn content, tool names, tool arguments, and tool results for leaked secrets, populated
+sensitive argument keys, dangerous shell/destructive command strings, and prompt-injection
+phrases in retrieved/tool content. Evidence is redacted and clipped before it appears in
+assertion details or CLI output.
+
+Use `block` to choose which finding categories fail the policy. If `block` is omitted, all
+categories are blocking.
+
+```yaml
+policies:
+  - name: security-footguns
+    type: security_footgun
+    block: [secret, sensitive_argument, dangerous_command, prompt_injection]
+```
 
 ## Target Syntax
 
@@ -200,6 +221,7 @@ agentcontract init
 ```bash
 agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
+agentcontract security cassette.agentrun.json   # Security foot-gun scan
 agentcontract init                               # Starter config
 ```
 
