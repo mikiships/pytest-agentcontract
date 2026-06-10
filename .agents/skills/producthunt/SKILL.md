@@ -26,15 +26,15 @@ Search for products, track launches, and monitor Product Hunt activity via the G
 3. Use the **Developer Token** at the bottom of your app's page (no OAuth flow needed for read-only access)
 4. Store the token in an environment variable: `PH_API_TOKEN`
 
-If no token is available, fall back to using `web_search` with `site:producthunt.com` queries.
+If no token is available, fall back to the current agent's web search capability with `site:producthunt.com` queries.
 
 ## Key Limitation: No Text Search
 
 The Product Hunt API **does not support free-text search on posts**. You can browse by topic, date, or get a specific post by slug — but you cannot search "AI writing tool" and get matching products.
 
-**To find a product by name**, use `web_search` first:
+**To find a product by name**, search the web first:
 ```
-web_search: site:producthunt.com/posts "product name"
+site:producthunt.com/posts "product name"
 ```
 Then use the slug from the result to query the API for full details (votes, comments, makers, etc.).
 
@@ -48,7 +48,7 @@ Then use the slug from the result to query the API for full details (votes, comm
 
 ## How to Query
 
-Use `exec` with `curl` to make GraphQL requests:
+Run `curl` from the shell to make GraphQL requests:
 
 ```bash
 curl -s -X POST https://api.producthunt.com/v2/api/graphql \
@@ -110,7 +110,7 @@ query {
 }
 ```
 
-**Remember:** This browses a topic — it's not a text search. To find a specific product by name, use `web_search` with `site:producthunt.com/posts "product name"`, then look up the post by slug via the API.
+**Remember:** This browses a topic — it's not a text search. To find a specific product by name, search the web for `site:producthunt.com/posts "product name"`, then look up the post by slug via the API.
 
 ### Get a Specific Post
 
@@ -244,10 +244,10 @@ query { topics(first: 50, order: FOLLOWERS_COUNT) { edges { node { name slug fol
 
 If no `PH_API_TOKEN` is available:
 
-1. Use `web_search` with queries like:
+1. Use the current agent's web search capability with queries like:
    - `site:producthunt.com/posts "product name"`
    - `site:producthunt.com "topic" launched`
-2. Use `web_fetch` on specific Product Hunt URLs to get basic info
+2. Open or browse specific Product Hunt URLs to get basic info
 3. Inform the user that richer data (vote counts, comments, maker info) requires an API token
 
 ## Output Format
@@ -271,7 +271,7 @@ If no `PH_API_TOKEN` is available:
 - **401 Unauthorized:** Token is invalid or expired. Check `PH_API_TOKEN`.
 - **429 Rate Limited:** Wait 15 minutes for rate limit reset.
 - **Complexity limit exceeded:** Reduce the number of fields or nested queries. Remove `comments`, `topics`, or `makers` sub-queries.
-- **Post not found:** The slug may be wrong. Try searching with `web_search` first to confirm the exact slug.
+- **Post not found:** The slug may be wrong. Try web search first to confirm the exact slug.
 - **No results for topic:** Check the topic slug — use the topics query to find valid slugs.
 
 ## Examples
@@ -282,7 +282,7 @@ Query today's posts sorted by votes, present top 10.
 
 ### Example 2: "How did Linear do on Product Hunt?"
 
-1. Search: `web_search "site:producthunt.com/posts linear"`
+1. Search the web for `site:producthunt.com/posts linear`
 2. Get the slug from results
 3. Query: `post(slug: "linear-5")` with full details
 
