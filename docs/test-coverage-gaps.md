@@ -3,14 +3,16 @@
 Baseline collected on 2026-06-11 from `origin/main` using:
 
 ```bash
-uv run coverage erase
-uv run coverage run -m pytest
-uv run coverage report -m '--include=src/agentcontract/*'
+uv run --extra dev coverage erase
+uv run --extra dev coverage run -m pytest
+uv run --extra dev coverage report -m --include='src/agentcontract/*'
 ```
 
 `coverage run -m pytest` is the authoritative invocation for gap analysis in
 this repository because it starts coverage before pytest imports the
-`agentcontract` pytest plugin.
+`agentcontract` pytest plugin. Use `--extra dev` from a clean checkout so `uv`
+installs the development tooling that provides `pytest-cov` and its transitive
+`coverage` dependency.
 
 ## Baseline
 
@@ -33,9 +35,14 @@ The package total for `src/agentcontract/*` is 1,351 statements, 345 missing,
 
 ## Measurement Caveat
 
-`uv run pytest --cov=agentcontract --cov-report=term-missing` currently
-underreports coverage for modules imported during pytest plugin discovery. The
-run still passes, but coverage emits:
+The pytest-cov invocation below currently underreports coverage for modules
+imported during pytest plugin discovery:
+
+```bash
+uv run --extra dev pytest --cov=agentcontract --cov-report=term-missing
+```
+
+The run still passes, but coverage emits:
 
 ```text
 CoverageWarning: Module agentcontract was previously imported, but not measured (module-not-measured)
