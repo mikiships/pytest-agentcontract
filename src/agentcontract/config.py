@@ -31,10 +31,8 @@ class AssertionSpec:
     type: str
     target: str = ""
     value: str | None = None
-    threshold: float | None = None
     prompt: str | None = None
     schema: dict[str, Any] | None = None
-    judge_model: str | None = None
     tools: list[str] | None = None
     block: list[str] | None = None
 
@@ -166,10 +164,8 @@ def _parse_assertion(raw: dict[str, Any]) -> AssertionSpec:
         type=raw["type"],
         target=raw.get("target", ""),
         value=raw.get("value"),
-        threshold=raw.get("threshold"),
         prompt=raw.get("prompt"),
         schema=raw.get("schema"),
-        judge_model=raw.get("judge_model"),
         tools=raw.get("tools"),
         block=raw.get("block"),
     )

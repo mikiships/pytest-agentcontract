@@ -17,9 +17,9 @@ from agentcontract.recorder.core import Recorder
 
 
 class TestLangGraphAdapter:
-    def _make_graph(self, result: dict[str, Any]) -> MagicMock:
+    def _make_graph(self, result: Any) -> MagicMock:
         graph = MagicMock()
-        graph.invoke.return_value = result
+        graph.invoke = MagicMock(return_value=result)
         return graph
 
     def test_records_user_and_assistant_messages(self) -> None:
@@ -113,7 +113,6 @@ class TestLangGraphAdapter:
         from agentcontract.adapters.langgraph import record_graph
 
         graph = self._make_graph("not a dict")
-        graph.invoke.return_value = "not a dict"
         recorder = Recorder(scenario="test-nodict")
 
         unpatch = record_graph(graph, recorder)
