@@ -19,7 +19,6 @@ class AssertionResult:
     assertion: AssertionSpec
     passed: bool
     message: str = ""
-    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -32,10 +31,6 @@ class ContractResult:
     @property
     def passed(self) -> bool:
         return all(r.passed for r in self.results)
-
-    @property
-    def failed_count(self) -> int:
-        return sum(1 for r in self.results if not r.passed)
 
     def failures(self) -> list[AssertionResult]:
         return [r for r in self.results if not r.passed]
