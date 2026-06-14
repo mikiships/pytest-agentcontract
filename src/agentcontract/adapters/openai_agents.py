@@ -148,11 +148,15 @@ def _extract_from_items(
                 if name:
                     recorder.add_turn(
                         role="assistant",
-                        tool_calls=[{
-                            "id": str(getattr(raw, "id", "") or getattr(raw, "call_id", "") or ""),
-                            "function": str(name),
-                            "arguments": args,
-                        }],
+                        tool_calls=[
+                            {
+                                "id": str(
+                                    getattr(raw, "id", "") or getattr(raw, "call_id", "") or ""
+                                ),
+                                "function": str(name),
+                                "arguments": args,
+                            }
+                        ],
                     )
 
         elif item_type == "ToolCallOutputItem":
@@ -215,11 +219,13 @@ def _extract_message_tool_calls(msg: Any) -> list[dict[str, Any]] | None:
     for tc in raw_calls:
         name = getattr(tc, "name", "") or _get_nested(tc, "function", "name", default="")
         if name:
-            calls.append({
-                "id": str(getattr(tc, "id", "") or getattr(tc, "call_id", "") or ""),
-                "function": str(name),
-                "arguments": _get_tool_arguments(tc),
-            })
+            calls.append(
+                {
+                    "id": str(getattr(tc, "id", "") or getattr(tc, "call_id", "") or ""),
+                    "function": str(name),
+                    "arguments": _get_tool_arguments(tc),
+                }
+            )
 
     return calls or None
 
