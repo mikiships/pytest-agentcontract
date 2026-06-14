@@ -23,6 +23,13 @@ from typing import Any
 
 from agentcontract.recorder.core import Recorder
 
+_LANGCHAIN_ROLE_MAP = {
+    "human": "user",
+    "ai": "assistant",
+    "system": "system",
+    "tool": "tool",
+}
+
 
 def record_graph(graph: Any, recorder: Recorder) -> Callable[[], None]:
     """Wrap a LangGraph CompiledGraph to record trajectories.
@@ -111,15 +118,24 @@ def _extract_turns(result: Any, recorder: Recorder, latency_ms: float) -> None:
 def _get_role(msg: Any) -> str:
     """Extract role from a LangChain message object or dict."""
     if isinstance(msg, dict):
-        return str(msg.get("role", msg.get("type", "")))
+        raw_role = msg.get("role")
+        if raw_role is None:
+            raw_role = msg.get("type")
+        return _normalize_role(raw_role)
 
     # LangChain message classes: HumanMessage, AIMessage, SystemMessage, ToolMessage
     type_attr = getattr(msg, "type", None)
     if type_attr:
-        role_map = {"human": "user", "ai": "assistant", "system": "system", "tool": "tool"}
-        return role_map.get(str(type_attr), str(type_attr))
+        return _normalize_role(type_attr)
 
     return ""
+
+
+def _normalize_role(role: Any) -> str:
+    if role is None:
+        return ""
+    raw_role = str(role)
+    return _LANGCHAIN_ROLE_MAP.get(raw_role, raw_role)
 
 
 def _get_content(msg: Any) -> str | None:

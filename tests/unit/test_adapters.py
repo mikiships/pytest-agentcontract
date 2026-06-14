@@ -109,6 +109,41 @@ class TestLangGraphAdapter:
 
         assert len(recorder.run.turns) == 2
 
+    def test_normalizes_langchain_type_values_in_dict_messages(self) -> None:
+        from agentcontract.adapters.langgraph import record_graph
+
+        messages = [
+            {"type": "human", "content": "Hi"},
+            {"type": "ai", "content": "Hello!"},
+        ]
+        graph = self._make_graph({"messages": messages})
+        recorder = Recorder(scenario="test-dict-type")
+
+        unpatch = record_graph(graph, recorder)
+        graph.invoke({})
+        unpatch()
+
+        assert len(recorder.run.turns) == 2
+        assert recorder.run.turns[0].role.value == "user"
+        assert recorder.run.turns[0].content == "Hi"
+        assert recorder.run.turns[1].role.value == "assistant"
+        assert recorder.run.turns[1].content == "Hello!"
+
+    def test_normalizes_tool_type_in_dict_messages(self) -> None:
+        from agentcontract.adapters.langgraph import record_graph
+
+        messages = [{"type": "tool", "content": "lookup result"}]
+        graph = self._make_graph({"messages": messages})
+        recorder = Recorder(scenario="test-dict-tool-type")
+
+        unpatch = record_graph(graph, recorder)
+        graph.invoke({})
+        unpatch()
+
+        assert len(recorder.run.turns) == 1
+        assert recorder.run.turns[0].role.value == "tool"
+        assert recorder.run.turns[0].content == "lookup result"
+
     def test_handles_non_dict_result(self) -> None:
         from agentcontract.adapters.langgraph import record_graph
 
