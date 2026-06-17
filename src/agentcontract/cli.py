@@ -5,6 +5,10 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from agentcontract.test_gap import TestGapSummary
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,6 +30,36 @@ def main(argv: list[str] | None = None) -> int:
     # init command
     subparsers.add_parser("init", help="Create a starter agentcontract.yml")
 
+    # gaps command
+    gaps_parser = subparsers.add_parser(
+        "gaps",
+        help="Report the source modules with the weakest test coverage",
+    )
+    gaps_parser.add_argument(
+        "--source-root",
+        type=Path,
+        default=Path("src/agentcontract"),
+        help="Directory containing source modules to analyze",
+    )
+    gaps_parser.add_argument(
+        "--test-root",
+        type=Path,
+        default=Path("tests"),
+        help="Directory containing pytest files used for companion matching",
+    )
+    gaps_parser.add_argument(
+        "--coverage-file",
+        type=Path,
+        default=Path(".coverage"),
+        help="coverage.py data file to analyze",
+    )
+    gaps_parser.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of modules to print",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command == "info":
@@ -34,6 +68,13 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_validate(args.path)
     elif args.command == "init":
         return _cmd_init()
+    elif args.command == "gaps":
+        return _cmd_gaps(
+            source_root=args.source_root,
+            test_root=args.test_root,
+            coverage_file=args.coverage_file,
+            limit=args.limit,
+        )
     else:
         parser.print_help()
         return 0
@@ -128,6 +169,68 @@ reporting:
         return 1
     print(f"Created {target}")
     return 0
+
+
+def _cmd_gaps(
+    source_root: Path,
+    test_root: Path,
+    coverage_file: Path,
+    limit: int,
+) -> int:
+    """Print ranked source modules with missing coverage."""
+    from agentcontract.test_gap import CoverageDataError, analyze_test_gaps
+
+    if limit <= 0:
+        print("Error: --limit must be greater than zero", file=sys.stderr)
+        return 1
+
+    try:
+        summary = analyze_test_gaps(
+            source_root=source_root,
+            test_root=test_root,
+            coverage_file=coverage_file,
+        )
+    except CoverageDataError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    _print_gap_summary(summary, limit)
+    return 0
+
+
+def _print_gap_summary(summary: TestGapSummary, limit: int) -> None:
+    print(f"Coverage gaps in {_display_path(summary.source_root)}")
+    print(f"Using coverage data from {_display_path(summary.coverage_file)}")
+
+    if not summary.test_root_exists:
+        print(f"Companion test scan skipped missing directory: {_display_path(summary.test_root)}")
+
+    if not summary.modules:
+        print("No coverage gaps found.")
+        return
+
+    visible_modules = summary.modules[:limit]
+    if len(summary.modules) > limit:
+        print(f"Showing top {len(visible_modules)} of {len(summary.modules)} modules with gaps")
+
+    for gap in visible_modules:
+        print(
+            f"{gap.module_name}: {gap.coverage_percent:.1f}% covered "
+            f"({gap.missing_line_count} missing / {gap.total_line_count} statements)"
+        )
+        print(f"  Source: {_display_path(gap.source_path)}")
+        if gap.companion_tests:
+            companion_list = ", ".join(_display_path(path) for path in gap.companion_tests)
+            print(f"  Companion tests: {companion_list}")
+        else:
+            print("  Companion tests: none found")
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(Path.cwd()))
+    except ValueError:
+        return str(path)
 
 
 if __name__ == "__main__":
