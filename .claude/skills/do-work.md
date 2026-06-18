@@ -1,13 +1,13 @@
 # /do-work
 
-Entrypoint for all feature and bugfix work on pytest-agentcontract.
+Entrypoint for all feature and bugfix work on pytest-agentcontract, a Python package with an argparse CLI, pytest plugin, recorder/replay engine, and framework adapters.
 
 ## Steps
 
 ### 1. Plan
 - Read the task/prompt carefully
 - Identify which files need to change
-- If the change touches public API (anything in `__init__.py` exports), note it
+- If the change touches public API (Python exports from `__init__.py` files), note it
 - If unsure about approach, check existing patterns in nearby code first
 
 ### 2. Explore
@@ -22,8 +22,8 @@ For new adapter work: see `.claude/skills/steps/explore-adapter.md`
 - Smallest possible diff that solves the problem
 - Follow existing code style (check the file you're editing)
 - Type hints on all public functions
-- No `any` types in TypeScript, no untyped functions in Python
-- If adding a new module, add it to `__init__.py` exports
+- Type hints on public Python functions; avoid untyped public entrypoints
+- If adding a new public module or symbol, add it to the appropriate `__init__.py` exports
 
 For refactoring: see `.claude/skills/steps/build-refactor.md`
 
