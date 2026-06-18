@@ -30,30 +30,30 @@ Use vision models to self-review screenshots against design intent. Catch spacin
 
 Use one of these methods to get a screenshot:
 
-**Via browser tool:**
+**Via a browser or screenshot tool:**
 ```
-browser: screenshot (captures the current page)
+Capture the current page or target viewport.
 ```
 
-**Via node screen capture (if available):**
+**Via desktop/window capture (if available):**
 ```
-nodes: screen_record
+Capture the relevant screen, window, or region.
 ```
 
 **Via Peekaboo (macOS):**
 ```
-exec: peekaboo screenshot
+peekaboo screenshot
 ```
 
 **User-provided:** The user may paste/attach a screenshot directly.
 
 ### Step 2: Analyze with Vision
 
-Use the `image` tool to analyze the screenshot:
+Use the current agent's vision/image inspection capability to analyze the screenshot:
 
 ```
-image: [path or URL to screenshot]
-prompt: "Review this UI screenshot for design quality..."
+Image: [path or URL to screenshot]
+Prompt: "Review this UI screenshot for design quality..."
 ```
 
 ### Step 3: Structured Review
@@ -302,8 +302,8 @@ meaning), and text readability at the shown sizes.
 ### Example 1: "Review this landing page screenshot"
 
 ```
-image: [screenshot path]
-prompt: "Review this landing page for design quality. Check spacing
+Image: [screenshot path]
+Prompt: "Review this landing page for design quality. Check spacing
 consistency, typography hierarchy, visual hierarchy (where does the eye
 go first?), CTA prominence, color contrast, and overall polish. Be
 specific about issues and suggest fixes. Rate 1-10."
@@ -312,8 +312,8 @@ specific about issues and suggest fixes. Rate 1-10."
 ### Example 2: "Does my implementation match this Figma design?"
 
 ```
-image: [mockup.png, implementation.png]
-prompt: "Compare these two images. First is the Figma mockup, second
+Images: [mockup.png, implementation.png]
+Prompt: "Compare these two images. First is the Figma mockup, second
 is the implementation. Identify every deviation in spacing, color,
 typography, alignment, and missing elements. Rate fidelity 1-10."
 ```
@@ -321,8 +321,8 @@ typography, alignment, and missing elements. Rate fidelity 1-10."
 ### Example 3: "Check if this component looks good on mobile"
 
 ```
-image: [mobile-screenshot.png]
-prompt: "Review this mobile UI. Is text readable? Are touch targets
+Image: [mobile-screenshot.png]
+Prompt: "Review this mobile UI. Is text readable? Are touch targets
 large enough (≥44px)? Does anything overflow? Is the layout well-adapted
 to mobile width? Check contrast and spacing."
 ```

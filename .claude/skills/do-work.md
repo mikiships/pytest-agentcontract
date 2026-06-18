@@ -7,7 +7,7 @@ Entrypoint for all feature and bugfix work on pytest-agentcontract.
 ### 1. Plan
 - Read the task/prompt carefully
 - Identify which files need to change
-- If the change touches public API (anything in `__init__.py` exports), note it
+- If the change touches public API (anything exported from `src/agentcontract/__init__.py`), note it
 - If unsure about approach, check existing patterns in nearby code first
 
 ### 2. Explore
@@ -21,9 +21,9 @@ For new adapter work: see `.claude/skills/steps/explore-adapter.md`
 ### 3. Build
 - Smallest possible diff that solves the problem
 - Follow existing code style (check the file you're editing)
-- Type hints on all public functions
-- No `any` types in TypeScript, no untyped functions in Python
-- If adding a new module, add it to `__init__.py` exports
+- Add type hints to new public functions unless the local code deliberately suppresses them
+- Do not introduce untyped public Python APIs; avoid `Any` in new public APIs unless the existing pattern requires it
+- If adding a new public module or symbol, update `src/agentcontract/__init__.py` only when the package exposes it as API
 
 For refactoring: see `.claude/skills/steps/build-refactor.md`
 
