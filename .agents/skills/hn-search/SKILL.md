@@ -33,9 +33,9 @@ Two search endpoints:
 https://hn.algolia.com/api/v1/search?query=QUERY&tags=TAG&hitsPerPage=N&numericFilters=FILTERS
 ```
 
-### Step 2: Fetch with `web_fetch`
+### Step 2: Fetch the URL
 
-Use `web_fetch` to call the API. Response is JSON.
+Use the current agent environment's HTTP, browser, or shell tool to call the API and parse the JSON response. For example, `curl -s` works well when shell access is available.
 
 ### Parameters
 
