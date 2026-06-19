@@ -1,14 +1,16 @@
 """Example tests demonstrating pytest-agentcontract with a customer support agent.
 
 Run these tests:
-    # Record trajectories (creates cassettes)
-    pytest examples/customer_support/test_support.py --ac-record -v
-
-    # Replay from cassettes (deterministic, no external calls)
-    pytest examples/customer_support/test_support.py --ac-replay -v
-
-    # Run with contract assertions
+    # Live mode: run the example agent and assertions without writing cassettes
     pytest examples/customer_support/test_support.py -v
+
+    # Record trajectories into the bundled example cassette directory
+    pytest examples/customer_support/test_support.py --ac-record \
+        --ac-scenarios examples/customer_support/scenarios -v
+
+    # Replay from the bundled example cassettes
+    pytest examples/customer_support/test_support.py --ac-replay \
+        --ac-scenarios examples/customer_support/scenarios -v
 """
 
 from __future__ import annotations
