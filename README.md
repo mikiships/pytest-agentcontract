@@ -13,7 +13,7 @@
   <img src="docs/demo.gif" alt="pytest-agentcontract demo: record, replay, assert" width="600">
 </p>
 
-Your agent calls `lookup_order`, then `check_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
+Your agent calls `lookup_order`, then `check_refund_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
 
 ```bash
 # Record a trajectory (hits real APIs once)
@@ -27,7 +27,7 @@ pytest --ac-replay
 tests/scenarios/refund-eligible.agentrun.json
 ├── turn 0: user → "I want a refund for order 123"
 ├── turn 1: assistant → lookup_order(order_id="123")
-├── turn 2: assistant → check_eligibility(order_id="123")
+├── turn 2: assistant → check_refund_eligibility(order_id="123")
 ├── turn 3: assistant → process_refund(order_id="123", amount=49.99)
 └── turn 4: assistant → "Your refund of $49.99 has been processed."
 ```
@@ -54,15 +54,16 @@ Framework adapters (LangGraph, LlamaIndex, OpenAI Agents SDK) are included -- no
 ```python
 @pytest.mark.agentcontract("refund-eligible")
 def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
-    if ac_mode == "record":
-        # Runs your real agent, records the trajectory
+    if ac_mode == "replay" and ac_replay_engine is not None:
+        # In replay mode, assert against the recorded cassette
+        run = ac_replay_engine.recorded_run
+    else:
+        # In live/record mode, run your agent and add turns to the recorder
         run_my_agent(ac_recorder)
-    elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
-    assert contract.passed, contract.failures()
+    result = ac_check_contract(run)
+    assert result.passed, result.failures()
 ```
 
 ### 2. Record once
@@ -78,6 +79,13 @@ pytest --ac-record -k test_refund_flow
 pytest --ac-replay
 # Deterministic. No API keys. No flakes. Sub-second.
 ```
+
+## Documentation
+
+- [Docs Index](docs/index.md)
+- [Pytest Plugin Reference](docs/pytest-plugin.md)
+- [Configuration Reference](docs/configuration.md)
+- [Cassette Format and CLI Reference](docs/cassette-format.md)
 
 ## SDK Auto-Recording
 
@@ -156,7 +164,7 @@ defaults:
 policies:
   - name: allowed-tools
     type: tool_allowlist
-    tools: [lookup_order, check_eligibility, process_refund]
+    tools: [lookup_order, check_refund_eligibility, process_refund]
 
   - name: confirm-before-refund
     type: requires_confirmation
@@ -168,6 +176,8 @@ Generate a starter config:
 agentcontract init
 ```
 
+The full config schema, including defaults, scenario overrides, budgets, and reporting fields, is documented in [docs/configuration.md](docs/configuration.md).
+
 ## Assertions
 
 | Type | What It Checks |
@@ -175,9 +185,9 @@ agentcontract init
 | `exact` | Exact string match |
 | `contains` | Substring present |
 | `regex` | Pattern match |
-| `json_schema` | JSON Schema validation on tool args/results |
+| `json_schema` | JSON Schema validation on a resolved target |
 | `not_called` | Tool was NOT invoked |
-| `called_with` | Tool called with specific arguments |
+| `called_with` | Tool called with specific argument values |
 | `called_count` | Exact invocation count |
 
 ## Policies
@@ -195,6 +205,8 @@ agentcontract init
 - `tool_call:function_name:arguments` -- tool call arguments
 - `tool_call:function_name:result` -- tool call result
 
+For marker aliases, fixtures, cassette locations, and pytest CLI options, see [docs/pytest-plugin.md](docs/pytest-plugin.md).
+
 ## CLI
 
 ```bash
@@ -202,6 +214,8 @@ agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
 agentcontract init                               # Starter config
 ```
+
+The cassette JSON structure and the exact CLI behavior are documented in [docs/cassette-format.md](docs/cassette-format.md).
 
 ## Why Not VCR / pytest-recording?
 
