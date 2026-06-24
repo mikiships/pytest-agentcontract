@@ -100,9 +100,15 @@ result = ac_replay_engine.finish(actual_turns)
 assert result.ok, result.errors
 ```
 
-`ToolStub.get_result()` returns recorded tool results in the order they were
-recorded. Passing arguments is optional, but when arguments are provided they
-must exactly match the next recorded call for that tool.
+`ToolStub.get_result()` returns the `result` field from recorded tool calls in
+the order they were recorded. Passing arguments is optional, but when arguments
+are provided they must exactly match the next recorded call for that tool.
+
+SDK interceptors record tool requests from model responses, but they do not see
+the tool outputs your application produces after the SDK call returns. For those
+cassettes, `get_result()` returns `None` unless you populate the matching
+`tool_calls[].result` fields yourself through manual recording or
+post-processing.
 
 ## CI usage
 
@@ -114,7 +120,7 @@ pytest --ac-replay
 
 Replay does not require live LLM credentials when your tests use
 `recorded_run`, or when your agent under test is wired to `tool_stub` instead of
-real tools.
+real tools and the cassette includes the needed `tool_calls[].result` values.
 
 ## Common failure modes
 
@@ -125,6 +131,9 @@ real tools.
 - Replay argument mismatch: `tool_stub.get_result("tool", args)` raises
   `ToolStubArgumentsMismatch` when `args` do not equal the next recorded
   arguments for that tool.
+- Missing recorded tool result: `tool_stub.get_result()` returns `None` when the
+  next recorded tool call has no `result` value. This is common with raw
+  OpenAI or Anthropic interceptor cassettes unless you backfill results.
 - Tool stub exhausted: `ToolStubExhausted` is raised when replay requests more
   calls than were recorded.
 - Missing or extra turns: `ReplayEngine.finish(actual_turns)` reports

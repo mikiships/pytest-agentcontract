@@ -111,7 +111,10 @@ replay:
 
 These values are parsed into `ReplayConfig`. The built-in `ReplayEngine`
 constructs a `ToolStub` from a loaded cassette; tests decide whether to use
-`tool_stub` or inspect `recorded_run` directly.
+`tool_stub` or inspect `recorded_run` directly. `ToolStub` returns the recorded
+`tool_calls[].result` value for each call. SDK interceptors record tool requests,
+but not application tool outputs, so interceptor cassettes need result fields
+backfilled before they can drive replayed tool execution.
 
 ### `defaults.assertions`
 

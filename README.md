@@ -119,6 +119,11 @@ from agentcontract.recorder.interceptors import patch_anthropic
 unpatch = patch_anthropic(client, ac_recorder)
 ```
 
+SDK interceptors capture model responses and tool requests. They do not see the
+tool outputs your application produces after the SDK call returns, so replay
+stubs only return tool results when the cassette's `tool_calls[].result` fields
+were populated by manual recording or post-processing.
+
 ## Framework Adapters
 
 Drop-in recording for popular agent frameworks:
@@ -244,8 +249,8 @@ Your agent's contract is: given this input, it calls these tools in this order w
                 └──────────┘
 ```
 
-1. **Record**: Run your agent against real APIs. The recorder captures every turn, tool call, argument, and result into a `.agentrun.json` cassette.
-2. **Replay**: The replay engine feeds recorded tool results back. No network. No tokens. Deterministic.
+1. **Record**: Run your agent against real APIs. The recorder captures turns, tool calls, arguments, and any tool results you provide into a `.agentrun.json` cassette.
+2. **Replay**: The replay engine loads the cassette and can feed recorded `tool_calls[].result` values back through `ToolStub`. No network. No tokens. Deterministic.
 3. **Assert**: The assertion engine checks contracts -- tool sequences, argument schemas, response content, policies.
 
 ## See Also

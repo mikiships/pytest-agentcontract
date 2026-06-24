@@ -68,8 +68,11 @@ async responses. It records the assistant content, model name, token usage when
 available, and tool call requests.
 
 Known limitation: OpenAI chat completion responses contain tool requests, not
-your application's tool results. Add tool-result turns manually or backfill
-results before relying on replay stubs.
+your application's tool results. Contract assertions on the requested tools work
+from the intercepted cassette, but replay stubs return `tool_calls[].result`.
+Use manual recording for flows that need replayed tool execution, or
+post-process the intercepted tool call entries to add `result` values before
+relying on `ToolStub`.
 
 ## Anthropic SDK interceptor
 
@@ -102,8 +105,11 @@ responses. It records text blocks, `tool_use` requests, model name, and token
 usage when available.
 
 Known limitation: Anthropic message responses expose `tool_use` requests, while
-tool results are produced later by your application. Add tool-result turns
-manually or backfill results before relying on replay stubs.
+tool results are produced later by your application. Contract assertions on the
+requested tools work from the intercepted cassette, but replay stubs return
+`tool_calls[].result`. Use manual recording for flows that need replayed tool
+execution, or post-process the intercepted tool call entries to add `result`
+values before relying on `ToolStub`.
 
 ## LangGraph adapter
 
