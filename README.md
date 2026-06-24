@@ -13,7 +13,7 @@
   <img src="docs/demo.gif" alt="pytest-agentcontract demo: record, replay, assert" width="600">
 </p>
 
-Your agent calls `lookup_order`, then `check_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
+Your agent calls `lookup_order`, then `check_refund_eligibility`, then `process_refund`. Every time. That's the contract. Test it like any other interface.
 
 ```bash
 # Record a trajectory (hits real APIs once)
@@ -27,7 +27,7 @@ pytest --ac-replay
 tests/scenarios/refund-eligible.agentrun.json
 ├── turn 0: user → "I want a refund for order 123"
 ├── turn 1: assistant → lookup_order(order_id="123")
-├── turn 2: assistant → check_eligibility(order_id="123")
+├── turn 2: assistant → check_refund_eligibility(order_id="123")
 ├── turn 3: assistant → process_refund(order_id="123", amount=49.99)
 └── turn 4: assistant → "Your refund of $49.99 has been processed."
 ```
@@ -57,11 +57,15 @@ def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
     if ac_mode == "record":
         # Runs your real agent, records the trajectory
         run_my_agent(ac_recorder)
-    elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+        run = ac_recorder.run
+    elif ac_mode == "replay" and ac_replay_engine is not None:
+        # Loads the recorded cassette -- no network, no tokens
+        run = ac_replay_engine.recorded_run
+    else:
+        run_my_agent(ac_recorder)
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
+    contract = ac_check_contract(run)
     assert contract.passed, contract.failures()
 ```
 
@@ -78,6 +82,15 @@ pytest --ac-record -k test_refund_flow
 pytest --ac-replay
 # Deterministic. No API keys. No flakes. Sub-second.
 ```
+
+## Documentation
+
+- [Documentation index](docs/index.md)
+- [Record and replay](docs/record-replay.md)
+- [Configuration](docs/configuration.md)
+- [Assertions and policies](docs/assertions-and-policies.md)
+- [Adapters and interceptors](docs/adapters-and-interceptors.md)
+- [Customer support example](examples/customer_support/README.md)
 
 ## SDK Auto-Recording
 
@@ -105,6 +118,11 @@ from agentcontract.recorder.interceptors import patch_anthropic
 
 unpatch = patch_anthropic(client, ac_recorder)
 ```
+
+SDK interceptors capture model responses and tool requests. They do not see the
+tool outputs your application produces after the SDK call returns, so replay
+stubs only return tool results when the cassette's `tool_calls[].result` fields
+were populated by manual recording or post-processing.
 
 ## Framework Adapters
 
@@ -156,7 +174,7 @@ defaults:
 policies:
   - name: allowed-tools
     type: tool_allowlist
-    tools: [lookup_order, check_eligibility, process_refund]
+    tools: [lookup_order, check_refund_eligibility, process_refund]
 
   - name: confirm-before-refund
     type: requires_confirmation
@@ -231,8 +249,8 @@ Your agent's contract is: given this input, it calls these tools in this order w
                 └──────────┘
 ```
 
-1. **Record**: Run your agent against real APIs. The recorder captures every turn, tool call, argument, and result into a `.agentrun.json` cassette.
-2. **Replay**: The replay engine feeds recorded tool results back. No network. No tokens. Deterministic.
+1. **Record**: Run your agent against real APIs. The recorder captures turns, tool calls, arguments, and any tool results you provide into a `.agentrun.json` cassette.
+2. **Replay**: The replay engine loads the cassette and can feed recorded `tool_calls[].result` values back through `ToolStub`. No network. No tokens. Deterministic.
 3. **Assert**: The assertion engine checks contracts -- tool sequences, argument schemas, response content, policies.
 
 ## See Also
