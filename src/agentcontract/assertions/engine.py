@@ -19,7 +19,6 @@ class AssertionResult:
     assertion: AssertionSpec
     passed: bool
     message: str = ""
-    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
