@@ -19,7 +19,7 @@ Your agent calls `lookup_order`, then `check_eligibility`, then `process_refund`
 # Record a trajectory (hits real APIs once)
 pytest --ac-record
 
-# Replay in CI forever (no network, no API keys, no cost, deterministic)
+# Check saved trajectories in CI (the test selects the recorded run)
 pytest --ac-replay
 ```
 
@@ -51,18 +51,49 @@ Framework adapters (LangGraph, LlamaIndex, OpenAI Agents SDK) are included -- no
 
 ### 1. Write a test
 
+Save as `test_refund.py`. This self-contained example uses deterministic turns;
+replace the recording branch with your agent integration when ready.
+
 ```python
+import pytest
+
+from agentcontract.config import AssertionSpec
+
+
 @pytest.mark.agentcontract("refund-eligible")
 def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
-    if ac_mode == "record":
-        # Runs your real agent, records the trajectory
-        run_my_agent(ac_recorder)
-    elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+    if ac_mode == "replay":
+        assert ac_replay_engine is not None
+        run = ac_replay_engine.recorded_run
+    else:
+        # Deterministic stand-in for an agent: no SDK or credentials needed.
+        ac_recorder.add_turn(role="user", content="Refund order 123")
+        ac_recorder.add_turn(
+            role="assistant",
+            tool_calls=[{
+                "id": "refund-1",
+                "function": "process_refund",
+                "arguments": {"order_id": "123", "amount": 49.99},
+                "result": {"status": "refunded"},
+            }],
+        )
+        ac_recorder.add_turn(
+            role="assistant", content="Your refund of $49.99 has been processed."
+        )
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
-    assert contract.passed, contract.failures()
+    contract = ac_check_contract(
+        run,
+        extra_assertions=[
+            AssertionSpec(type="contains", target="final_response", value="$49.99"),
+            AssertionSpec(
+                type="called_with", target="tool:process_refund",
+                schema={"order_id": "123", "amount": 49.99},
+            ),
+            AssertionSpec(type="called_count", target="tool:process_refund", value="1"),
+        ],
+    )
+    assert contract.passed, [failure.message for failure in contract.failures()]
 ```
 
 ### 2. Record once
@@ -76,8 +107,13 @@ pytest --ac-record -k test_refund_flow
 
 ```bash
 pytest --ac-replay
-# Deterministic. No API keys. No flakes. Sub-second.
+# The example checks the saved trajectory without calling an SDK.
 ```
+
+Checking `recorded_run` validates saved data; it does not execute your current agent.
+`--ac-replay` does not automatically intercept SDK calls or block network access.
+See the [pytest workflow guide](docs/pytest-workflow.md) for fixtures, configuration,
+and explicit tool-stub integration.
 
 ## SDK Auto-Recording
 
@@ -232,7 +268,7 @@ Your agent's contract is: given this input, it calls these tools in this order w
 ```
 
 1. **Record**: Run your agent against real APIs. The recorder captures every turn, tool call, argument, and result into a `.agentrun.json` cassette.
-2. **Replay**: The replay engine feeds recorded tool results back. No network. No tokens. Deterministic.
+2. **Replay**: Check the saved trajectory, or explicitly integrate the replay engine’s tool stubs into your agent. Offline execution depends on that integration.
 3. **Assert**: The assertion engine checks contracts -- tool sequences, argument schemas, response content, policies.
 
 ## See Also
