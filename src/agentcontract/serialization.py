@@ -267,7 +267,9 @@ def _turn_from_dict(data: dict[str, Any]) -> Turn:
     if isinstance(timing_data, dict):
         timing = Timing(
             latency_ms=_coerce_optional_float(timing_data.get("latency_ms")),
-            time_to_first_token_ms=_coerce_optional_float(timing_data.get("time_to_first_token_ms")),
+            time_to_first_token_ms=_coerce_optional_float(
+                timing_data.get("time_to_first_token_ms")
+            ),
         )
 
     tokens = None
