@@ -86,6 +86,7 @@ Intercept real SDK calls instead of manually building turns:
 ```python
 from agentcontract.recorder.interceptors import patch_openai
 
+
 def test_with_real_agent(ac_recorder):
     client = openai.OpenAI()
     unpatch = patch_openai(client, ac_recorder)
@@ -113,18 +114,21 @@ Drop-in recording for popular agent frameworks:
 ```python
 # LangGraph
 from agentcontract.adapters import record_graph
+
 unpatch = record_graph(compiled_graph, recorder)
 result = compiled_graph.invoke({"messages": [("user", "I need a refund")]})
 unpatch()
 
 # LlamaIndex
 from agentcontract.adapters import record_agent
+
 unpatch = record_agent(agent, recorder)
 response = agent.chat("What's the refund policy?")
 unpatch()
 
 # OpenAI Agents SDK
 from agentcontract.adapters import record_runner
+
 unpatch = record_runner(recorder)
 result = Runner.run_sync(agent, "Help with billing")
 unpatch()

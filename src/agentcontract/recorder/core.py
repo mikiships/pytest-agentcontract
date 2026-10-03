@@ -152,9 +152,7 @@ class Recorder:
 
         normalized_latency_ms = _coerce_optional_float(latency_ms)
         timing = (
-            Timing(latency_ms=normalized_latency_ms)
-            if normalized_latency_ms is not None
-            else None
+            Timing(latency_ms=normalized_latency_ms) if normalized_latency_ms is not None else None
         )
         normalized_prompt_tokens = _coerce_int(prompt_tokens, 0)
         normalized_completion_tokens = _coerce_int(completion_tokens, 0)
