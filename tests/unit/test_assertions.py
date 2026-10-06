@@ -167,6 +167,35 @@ class TestNotCalled:
 
 
 class TestCalledWith:
+    def test_missing_argument_does_not_match_none(self) -> None:
+        result = AssertionEngine().check(
+            _make_run(),
+            assertions=[
+                AssertionSpec(
+                    type="called_with",
+                    target="tool:lookup_order",
+                    schema={"reason": None},
+                )
+            ],
+        )
+        assert not result.passed
+        assert "not called with expected arguments" in result.failures()[0].message
+
+    def test_explicit_none_argument_matches(self) -> None:
+        run = _make_run()
+        run.turns[1].tool_calls[0].arguments["reason"] = None
+        result = AssertionEngine().check(
+            run,
+            assertions=[
+                AssertionSpec(
+                    type="called_with",
+                    target="tool:lookup_order",
+                    schema={"reason": None},
+                )
+            ],
+        )
+        assert result.passed
+
     def test_pass(self):
         engine = AssertionEngine()
         result = engine.check(
