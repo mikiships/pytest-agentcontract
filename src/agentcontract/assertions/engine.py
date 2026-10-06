@@ -260,7 +260,7 @@ class AssertionEngine:
         for name, args, _ in calls:
             if name == func_name and isinstance(args, dict):
                 # Check if expected args are a subset of actual args
-                match = all(args.get(k) == v for k, v in expected_args.items())
+                match = all(k in args and args[k] == v for k, v in expected_args.items())
                 if match:
                     return AssertionResult(assertion=spec, passed=True)
 
