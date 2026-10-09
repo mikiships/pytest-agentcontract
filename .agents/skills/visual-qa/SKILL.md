@@ -28,33 +28,17 @@ Use vision models to self-review screenshots against design intent. Catch spacin
 
 ### Step 1: Capture the Screenshot
 
-Use one of these methods to get a screenshot:
-
-**Via browser tool:**
-```
-browser: screenshot (captures the current page)
-```
-
-**Via node screen capture (if available):**
-```
-nodes: screen_record
-```
-
-**Via Peekaboo (macOS):**
-```
-exec: peekaboo screenshot
-```
-
-**User-provided:** The user may paste/attach a screenshot directly.
+Use the current agent's browser or desktop screenshot capability, following
+that tool's documented interface. A user-provided screenshot also works.
+Capture a still image; screen recording is not needed for this workflow.
+This repository does not bundle browser, desktop capture, or vision tools.
 
 ### Step 2: Analyze with Vision
 
-Use the `image` tool to analyze the screenshot:
-
-```
-image: [path or URL to screenshot]
-prompt: "Review this UI screenshot for design quality..."
-```
+Open the captured image with the host's image-viewing capability, or inspect
+the user attachment directly. The examples below describe image inputs and
+review prompts; they are not literal tool calls. If image viewing is
+unavailable, report that limitation instead of claiming a visual review.
 
 ### Step 3: Structured Review
 
@@ -228,7 +212,7 @@ Looks good: [What's working]
 
 ## Review Prompts for Vision Model
 
-Use these prompts with the `image` tool depending on what you need:
+Use these prompts when inspecting the image, depending on what you need:
 
 ### General Review
 ```
@@ -271,6 +255,15 @@ meaning), and text readability at the shown sizes.
 
 ---
 
+## Project Scope
+
+As described in [README.md](../../../README.md), pytest-agentcontract is a
+Python pytest plugin and CLI for recording trajectories, replaying cassettes,
+and checking contracts. It has no bundled web app or frontend build workflow.
+Use this skill for supplied screenshots or explicitly requested visual work.
+Validate Python changes with the project's tests; screenshots do not verify
+recording, replay, or assertion behavior.
+
 ## Integration with Build Workflow
 
 ### After Building a Component
@@ -302,7 +295,7 @@ meaning), and text readability at the shown sizes.
 ### Example 1: "Review this landing page screenshot"
 
 ```
-image: [screenshot path]
+Image inputs: [screenshot path]
 prompt: "Review this landing page for design quality. Check spacing
 consistency, typography hierarchy, visual hierarchy (where does the eye
 go first?), CTA prominence, color contrast, and overall polish. Be
@@ -312,7 +305,7 @@ specific about issues and suggest fixes. Rate 1-10."
 ### Example 2: "Does my implementation match this Figma design?"
 
 ```
-image: [mockup.png, implementation.png]
+Image inputs: [mockup.png, implementation.png]
 prompt: "Compare these two images. First is the Figma mockup, second
 is the implementation. Identify every deviation in spacing, color,
 typography, alignment, and missing elements. Rate fidelity 1-10."
@@ -321,7 +314,7 @@ typography, alignment, and missing elements. Rate fidelity 1-10."
 ### Example 3: "Check if this component looks good on mobile"
 
 ```
-image: [mobile-screenshot.png]
+Image inputs: [mobile-screenshot.png]
 prompt: "Review this mobile UI. Is text readable? Are touch targets
 large enough (≥44px)? Does anything overflow? Is the layout well-adapted
 to mobile width? Check contrast and spacing."

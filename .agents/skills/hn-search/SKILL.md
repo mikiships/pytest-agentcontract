@@ -33,9 +33,21 @@ Two search endpoints:
 https://hn.algolia.com/api/v1/search?query=QUERY&tags=TAG&hitsPerPage=N&numericFilters=FILTERS
 ```
 
-### Step 2: Fetch with `web_fetch`
+### Step 2: Fetch the JSON response
 
-Use `web_fetch` to call the API. Response is JSON.
+Use the current agent's HTTP fetch capability. Tool names vary by host;
+this repository does not provide a `web_fetch` tool. If a shell and curl
+are available, for example:
+
+```bash
+curl --fail --silent --show-error --get 'https://hn.algolia.com/api/v1/search' \
+  --data-urlencode 'query=ai agents' \
+  --data-urlencode 'tags=story' \
+  --data-urlencode 'hitsPerPage=10'
+```
+
+Use `--data-urlencode` for query values, including numeric filters, so
+spaces, parentheses, and comparison operators survive shell/URL parsing.
 
 ### Parameters
 
@@ -80,7 +92,7 @@ Combine with commas: `numericFilters=points>100,num_comments>50`
 
 To search within a time window, use Unix timestamps with `created_at_i`:
 
-Calculate the current Unix timestamp first (e.g., via `exec: date +%s`), then subtract:
+Calculate the current Unix timestamp first (e.g., by running `date +%s` in a shell), then subtract:
 
 | Window | Subtract from now |
 |--------|------------------|
