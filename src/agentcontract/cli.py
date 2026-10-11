@@ -5,11 +5,22 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import NoReturn
+
+
+class _ScanArgumentParser(argparse.ArgumentParser):
+    """Keep invalid scanner arguments out of diagnostics."""
+
+    def error(self, message: str) -> NoReturn:
+        self.print_usage(sys.stderr)
+        self.exit(2, "agentcontract: invalid scan-pii arguments\n")
 
 
 def main(argv: list[str] | None = None) -> int:
     """Main CLI entry point."""
-    parser = argparse.ArgumentParser(
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    parser_type = _ScanArgumentParser if arguments[:1] == ["scan-pii"] else argparse.ArgumentParser
+    parser = parser_type(
         prog="agentcontract",
         description="pytest-agentcontract: Deterministic CI tests for LLM agent trajectories",
     )
@@ -23,12 +34,23 @@ def main(argv: list[str] | None = None) -> int:
     validate_parser = subparsers.add_parser("validate", help="Validate a cassette file")
     validate_parser.add_argument("path", type=Path, help="Path to .agentrun.json file")
 
+    scan_parser = subparsers.add_parser("scan-pii", help="Scan cassettes for potential PII")
+    scan_parser.add_argument("path", type=Path, help="Cassette file or directory")
+
     # init command
     subparsers.add_parser("init", help="Create a starter agentcontract.yml")
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(arguments)
 
-    if args.command == "info":
+    if args.command == "scan-pii":
+        import json
+
+        from agentcontract.pii import scan_path
+
+        report = scan_path(args.path)
+        print(json.dumps(report, sort_keys=True))
+        return 2 if report["errors"] else 1 if report["findings"] else 0
+    elif args.command == "info":
         return _cmd_info(args.path)
     elif args.command == "validate":
         return _cmd_validate(args.path)
