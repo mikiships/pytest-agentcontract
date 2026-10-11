@@ -30,3 +30,14 @@ handles are also intentional attribution. These were left unchanged.
 
 This limited heuristic review does not certify that the checkout is PII-free.
 Binary assets and unsupported PII categories are not covered.
+
+## Iteration 2 verification
+
+Repeated the current-checkout audit after extending parenthesized phone detection
+and sanitizing CLI argument errors. The eight original email locations remain
+reserved example-domain contacts; no fixture remediation is needed. The additional
+README phone example and scanner regression inputs are intentionally synthetic.
+Both scenario directories still produce three email findings each without errors.
+Invalid argument tests cover missing input, surplus paths, and unknown options;
+none may echo supplied values. Parenthesized phone tests cover compact subscriber
+numbers and reject adjoining letters or extra digits.

@@ -5,11 +5,22 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import NoReturn
+
+
+class _ScanArgumentParser(argparse.ArgumentParser):
+    """Keep invalid scanner arguments out of diagnostics."""
+
+    def error(self, message: str) -> NoReturn:
+        self.print_usage(sys.stderr)
+        self.exit(2, "agentcontract: invalid scan-pii arguments\n")
 
 
 def main(argv: list[str] | None = None) -> int:
     """Main CLI entry point."""
-    parser = argparse.ArgumentParser(
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    parser_type = _ScanArgumentParser if arguments[:1] == ["scan-pii"] else argparse.ArgumentParser
+    parser = parser_type(
         prog="agentcontract",
         description="pytest-agentcontract: Deterministic CI tests for LLM agent trajectories",
     )
@@ -29,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     # init command
     subparsers.add_parser("init", help="Create a starter agentcontract.yml")
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(arguments)
 
     if args.command == "scan-pii":
         import json

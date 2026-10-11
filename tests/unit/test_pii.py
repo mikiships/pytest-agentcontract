@@ -128,3 +128,49 @@ def test_linked_directory_is_incomplete(tmp_path, capsys):
     (tmp_path / "loop").symlink_to(tmp_path, target_is_directory=True)
     assert main(["scan-pii", str(tmp_path)]) == 2
     assert "discovery_failed" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("text", ["(202)5550100", "+1(202)5550100", "(202) 5550100"])
+def test_parenthesized_phone_without_subscriber_separator(text):
+    assert list(scan_value(text)) == [("$", "us_phone")]
+
+
+@pytest.mark.parametrize("text", ["(202)55501000", "x(202)5550100", "(202)5550100x"])
+def test_parenthesized_phone_boundaries(text):
+    assert list(scan_value(text)) == []
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        [],
+        ["clean.json", "review@example.invalid.agentrun.json"],
+        ["--review@example.invalid"],
+    ],
+)
+def test_invalid_cli_arguments_are_sanitized(arguments, capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["scan-pii", *arguments])
+    assert exc.value.code == 2
+    captured = capsys.readouterr()
+    assert "review@example.invalid" not in captured.out + captured.err
+    assert "invalid scan-pii arguments" in captured.err
+
+
+
+def test_compact_phone_cli_is_sanitized_and_read_only(tmp_path, capsys, monkeypatch):
+    cassette = tmp_path / "(202)5550100.agentrun.json"
+    original = b'{"nested": [{"phone": "(202)5550100"}]}'
+    cassette.write_bytes(original)
+    monkeypatch.setattr("sys.argv", ["agentcontract", "scan-pii", str(cassette)])
+    assert main() == 1
+    captured = capsys.readouterr()
+    assert "(202)5550100" not in captured.out + captured.err
+    assert json.loads(captured.out)["findings"] == [
+        {
+            "file": "file-0001",
+            "location": "$.entry[0].value[0].entry[0].value",
+            "category": "us_phone",
+        }
+    ]
+    assert cassette.read_bytes() == original

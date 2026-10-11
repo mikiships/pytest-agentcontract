@@ -214,8 +214,8 @@ keys. Matches are **potential exposure requiring manual review**.
 
 Supported heuristics are email addresses, explicitly formatted US telephone numbers
 (spaces, dots, hyphens, or parenthesized area codes, with optional country code 1),
-and hyphenated US Social Security number patterns. Synthetic examples also match;
-SSN patterns are not checked for valid issuance.
+including `(202)5550100`, and hyphenated US Social Security number patterns.
+Synthetic examples also match; SSN patterns are not checked for valid issuance.
 
 The command prints deterministic JSON containing `scanned_files`, `findings`, and
 `errors`. Findings contain only detector category, an ordinal file identifier, and
@@ -224,6 +224,7 @@ filenames, or parser exception details are emitted. `file-0001` identifies the f
 file in sorted path order within that invocation. Locations start at `$`; array
 indices and `entry[N].key` / `entry[N].value` use zero-based indices, with object
 entries in source order. Use these positions to review the original files locally.
+Invalid command arguments produce a fixed diagnostic without echoing supplied values.
 Each category is reported once per string, even if it matches repeatedly.
 
 Exit statuses:
