@@ -201,7 +201,46 @@ agentcontract init
 agentcontract info cassette.agentrun.json       # Cassette summary
 agentcontract validate cassette.agentrun.json   # Structure check
 agentcontract init                               # Starter config
+agentcontract scan-pii tests/scenarios            # Local potential-PII scan
 ```
+
+### Review cassette PII exposure
+
+`agentcontract scan-pii <file-or-directory>` reads raw JSON locally without
+modifying files or contacting external services. Directories recursively discover
+`*.agentrun.json`; an explicit file can have any name. All strings and object keys
+are examined, including metadata, unknown fields, nested tool payloads, and duplicate
+keys. Matches are **potential exposure requiring manual review**.
+
+Supported heuristics are email addresses, explicitly formatted US telephone numbers
+(spaces, dots, hyphens, or parenthesized area codes, with optional country code 1),
+including `(202)5550100`, and hyphenated US Social Security number patterns.
+Synthetic examples also match; SSN patterns are not checked for valid issuance.
+
+The command prints deterministic JSON containing `scanned_files`, `findings`, and
+`errors`. Findings contain only detector category, an ordinal file identifier, and
+an ordinal location. No matched values, surrounding content, object key names,
+filenames, or parser exception details are emitted. `file-0001` identifies the first
+file in sorted path order within that invocation. Locations start at `$`; array
+indices and `entry[N].key` / `entry[N].value` use zero-based indices, with object
+entries in source order. Use these positions to review the original files locally.
+Invalid command arguments produce a fixed diagnostic without echoing supplied values,
+including errors raised before the scanner subcommand is selected.
+Each category is reported once per string, even if it matches repeatedly.
+
+Exit statuses:
+
+- **0**: completed scan with no findings.
+- **1**: completed scan with findings.
+- **2**: invalid input or incomplete scanning, including an empty target set,
+  unreadable/malformed JSON, or discovery failures. Other files are still scanned.
+
+Directory symlinks are not traversed and make the scan incomplete. File symlinks
+are read if they resolve to regular files. This is a heuristic audit of selected
+files in the current checkout; it does not examine Git history, redact data, enforce
+recording-time rules, detect every international format, or establish that data is
+PII-free. Names, addresses, unformatted numbers, images, and encoded payloads are
+outside its detection scope. See [the checkout audit](docs/pii-audit.md).
 
 ## Why Not VCR / pytest-recording?
 
