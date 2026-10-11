@@ -23,12 +23,23 @@ def main(argv: list[str] | None = None) -> int:
     validate_parser = subparsers.add_parser("validate", help="Validate a cassette file")
     validate_parser.add_argument("path", type=Path, help="Path to .agentrun.json file")
 
+    scan_parser = subparsers.add_parser("scan-pii", help="Scan cassettes for potential PII")
+    scan_parser.add_argument("path", type=Path, help="Cassette file or directory")
+
     # init command
     subparsers.add_parser("init", help="Create a starter agentcontract.yml")
 
     args = parser.parse_args(argv)
 
-    if args.command == "info":
+    if args.command == "scan-pii":
+        import json
+
+        from agentcontract.pii import scan_path
+
+        report = scan_path(args.path)
+        print(json.dumps(report, sort_keys=True))
+        return 2 if report["errors"] else 1 if report["findings"] else 0
+    elif args.command == "info":
         return _cmd_info(args.path)
     elif args.command == "validate":
         return _cmd_validate(args.path)
