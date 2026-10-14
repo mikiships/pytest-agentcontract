@@ -83,7 +83,6 @@ def ac_recorder(request: pytest.FixtureRequest) -> Generator[Recorder, None, Non
     marker = request.node.get_closest_marker("agentcontract") or request.node.get_closest_marker(
         "agent_scenario"
     )
-    scenario = ""
     if marker and marker.args:
         scenario = marker.args[0]
     elif marker and marker.kwargs.get("name"):
@@ -122,7 +121,6 @@ def ac_replay_engine(
     marker = request.node.get_closest_marker("agentcontract") or request.node.get_closest_marker(
         "agent_scenario"
     )
-    scenario = ""
     if marker and marker.args:
         scenario = marker.args[0]
     elif marker and marker.kwargs.get("name"):
@@ -135,7 +133,6 @@ def ac_replay_engine(
 
     if not cassette_path.exists():
         pytest.skip(f"No cassette found at {cassette_path}")
-        return None
 
     try:
         run = load_run(cassette_path)
