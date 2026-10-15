@@ -135,12 +135,14 @@ def _extract_tool_calls(response: Any) -> list[dict[str, Any]] | None:
             raw_input = getattr(source, "raw_input", {})
             raw_output = getattr(source, "raw_output", None)
 
-            calls.append({
-                "id": "",
-                "function": str(tool_name),
-                "arguments": raw_input if isinstance(raw_input, dict) else {},
-                "result": str(raw_output) if raw_output is not None else None,
-            })
+            calls.append(
+                {
+                    "id": "",
+                    "function": str(tool_name),
+                    "arguments": raw_input if isinstance(raw_input, dict) else {},
+                    "result": str(raw_output) if raw_output is not None else None,
+                }
+            )
 
     # Also check source_nodes for retrieval-based responses
     source_nodes = getattr(response, "source_nodes", None)
@@ -153,12 +155,14 @@ def _extract_tool_calls(response: Any) -> list[dict[str, Any]] | None:
             if inner:
                 text = getattr(inner, "text", str(inner))[:200]
 
-            calls.append({
-                "id": str(node_id) if node_id else "",
-                "function": "_retrieve",
-                "arguments": {"score": score} if score is not None else {},
-                "result": text or None,
-            })
+            calls.append(
+                {
+                    "id": str(node_id) if node_id else "",
+                    "function": "_retrieve",
+                    "arguments": {"score": score} if score is not None else {},
+                    "result": text or None,
+                }
+            )
 
     return calls or None
 
