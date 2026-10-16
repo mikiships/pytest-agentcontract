@@ -173,23 +173,22 @@ class ReplayEngine:
                     f"Turn {i}: expected {len(expected.tool_calls)} tool calls, "
                     f"got {len(actual.tool_calls)}"
                 )
-            else:
-                for j, (act_tc, exp_tc) in enumerate(
-                    zip(actual.tool_calls, expected.tool_calls, strict=False)
-                ):
-                    if act_tc.function != exp_tc.function:
-                        result.mismatched_tools += 1
-                        result.errors.append(
-                            f"Turn {i}, tool {j}: expected function='{exp_tc.function}', "
-                            f"got function='{act_tc.function}'"
-                        )
-                    elif act_tc.arguments != exp_tc.arguments:
-                        result.mismatched_tools += 1
-                        result.errors.append(
-                            f"Turn {i}, tool {j} ({act_tc.function}): arguments differ"
-                        )
-                    else:
-                        result.matched_tools += 1
+            for j, (act_tc, exp_tc) in enumerate(
+                zip(actual.tool_calls, expected.tool_calls, strict=False)
+            ):
+                if act_tc.function != exp_tc.function:
+                    result.mismatched_tools += 1
+                    result.errors.append(
+                        f"Turn {i}, tool {j}: expected function='{exp_tc.function}', "
+                        f"got function='{act_tc.function}'"
+                    )
+                elif act_tc.arguments != exp_tc.arguments:
+                    result.mismatched_tools += 1
+                    result.errors.append(
+                        f"Turn {i}, tool {j} ({act_tc.function}): arguments differ"
+                    )
+                else:
+                    result.matched_tools += 1
 
         # Check for missing turns
         if len(actual_turns) < len(recorded_turns):

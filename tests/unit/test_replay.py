@@ -219,3 +219,53 @@ def test_replay_finish_handles_non_string_content_on_extra_turn():
 
     assert not result.ok
     assert any("Extra turn 4" in err for err in result.errors)
+
+
+@pytest.mark.parametrize("count_difference", [-2, 0, 2], ids=["missing", "equal", "extra"])
+@pytest.mark.parametrize("overlap", ["match", "function", "arguments", "both"])
+def test_replay_finish_compares_overlapping_calls(count_difference, overlap):
+    expected_calls = [
+        ToolCall(id="first", function="lookup_order", arguments={"order_id": "123"}),
+        ToolCall(id="second", function="process_refund", arguments={"amount": 10}),
+    ]
+    actual_calls = [
+        ToolCall(
+            id="actual-first",
+            function="wrong_tool" if overlap in ("function", "both") else "lookup_order",
+            arguments={"order_id": "456" if overlap in ("arguments", "both") else "123"},
+        ),
+        expected_calls[1],
+    ]
+    trailing_calls = [
+        ToolCall(id=f"trailing-{i}", function="notify", arguments={}) for i in range(2)
+    ]
+    if count_difference > 0:
+        actual_calls.extend(trailing_calls)
+    elif count_difference < 0:
+        expected_calls.extend(trailing_calls)
+    run = AgentRun(
+        metadata=RunMetadata(scenario="overlapping-calls"),
+        turns=[Turn(index=0, role=TurnRole.ASSISTANT, tool_calls=expected_calls)],
+    )
+
+    result = ReplayEngine(run).finish(
+        [Turn(index=0, role=TurnRole.ASSISTANT, tool_calls=actual_calls)]
+    )
+
+    assert result.matched_tools == (2 if overlap == "match" else 1)
+    assert result.mismatched_tools == abs(count_difference) + (overlap != "match")
+    assert result.extra_tools == max(count_difference, 0)
+    assert result.missing_tools == max(-count_difference, 0)
+    assert result.ok == (count_difference == 0 and overlap == "match")
+    expected_errors = []
+    if count_difference:
+        expected_errors.append(
+            f"Turn 0: expected {len(expected_calls)} tool calls, got {len(actual_calls)}"
+        )
+    if overlap in ("function", "both"):
+        expected_errors.append(
+            "Turn 0, tool 0: expected function='lookup_order', got function='wrong_tool'"
+        )
+    elif overlap == "arguments":
+        expected_errors.append("Turn 0, tool 0 (lookup_order): arguments differ")
+    assert result.errors == expected_errors
