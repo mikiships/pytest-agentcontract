@@ -52,18 +52,25 @@ Framework adapters (LangGraph, LlamaIndex, OpenAI Agents SDK) are included -- no
 ### 1. Write a test
 
 ```python
+import pytest
+
+
 @pytest.mark.agentcontract("refund-eligible")
 def test_refund_flow(ac_recorder, ac_mode, ac_replay_engine, ac_check_contract):
-    if ac_mode == "record":
-        # Runs your real agent, records the trajectory
+    if ac_mode == "replay":
+        # Check the loaded cassette -- no network, no tokens
+        run = ac_replay_engine.recorded_run
+    else:  # record or live
+        # Your helper runs the agent and adds turns to the recorder
         run_my_agent(ac_recorder)
-    elif ac_mode == "replay":
-        # Replays from cassette -- no network, no tokens
-        result = ac_replay_engine.run()
+        run = ac_recorder.run
 
-    contract = ac_check_contract(ac_recorder.run)
+    contract = ac_check_contract(run)
     assert contract.passed, contract.failures()
 ```
+
+For a runnable example without SDKs or credentials, and the complete option,
+marker, fixture, and configuration reference, see [pytest integration](docs/pytest-integration.md).
 
 ### 2. Record once
 
