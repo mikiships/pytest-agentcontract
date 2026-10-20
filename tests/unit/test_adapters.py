@@ -5,6 +5,7 @@ All tests use mock objects -- no actual framework imports needed.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import MagicMock
@@ -127,6 +128,41 @@ class TestLangGraphAdapter:
 
 
 class TestLlamaIndexAdapter:
+    @pytest.mark.parametrize("method_name", ["achat", "aquery"])
+    def test_records_async_response(self, method_name: str) -> None:
+        from agentcontract.adapters.llamaindex import record_agent
+
+        @dataclass
+        class FakeResponse:
+            response: str
+
+        response = FakeResponse(response="Found the answer.")
+
+        async def query(prompt: str) -> FakeResponse:
+            assert prompt == "Find it"
+            return response
+
+        class FakeAgent:
+            pass
+
+        agent = FakeAgent()
+        setattr(agent, method_name, query)
+        recorder = Recorder(scenario="test-async-llamaindex")
+        unpatch = record_agent(agent, recorder)
+        try:
+            result = asyncio.run(getattr(agent, method_name)("Find it"))
+        finally:
+            unpatch()
+
+        assert result is response
+        assert getattr(agent, method_name) is query
+        assert len(recorder.run.turns) == 1
+        turn = recorder.run.turns[0]
+        assert turn.role.value == "assistant"
+        assert turn.content == response.response
+        assert turn.timing is not None
+        assert turn.timing.latency_ms >= 0
+
     def test_records_response(self) -> None:
         from agentcontract.adapters.llamaindex import record_agent
 
