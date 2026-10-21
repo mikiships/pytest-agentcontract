@@ -103,9 +103,7 @@ def ac_recorder(request: pytest.FixtureRequest) -> Generator[Recorder, None, Non
         try:
             recorder.save(path)
         except (OSError, ValueError, TypeError) as e:
-            pytest.fail(
-                f"Failed to save cassette '{path}' ({type(e).__name__}): {e}"
-            )
+            pytest.fail(f"Failed to save cassette '{path}' ({type(e).__name__}): {e}")
 
 
 @pytest.fixture
@@ -140,9 +138,7 @@ def ac_replay_engine(
     try:
         run = load_run(cassette_path)
     except (OSError, ValueError, TypeError) as e:
-        pytest.fail(
-            f"Failed to load cassette '{cassette_path}' ({type(e).__name__}): {e}"
-        )
+        pytest.fail(f"Failed to load cassette '{cassette_path}' ({type(e).__name__}): {e}")
     return ReplayEngine(run)
 
 

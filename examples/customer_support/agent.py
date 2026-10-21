@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # Simulated tools (in a real app these would hit databases/APIs)
 ORDERS_DB = {
     "ORD-123": {
@@ -64,7 +63,9 @@ def process_refund(order_id: str, amount: float, method: str = "original") -> di
 
 
 # The "agent" -- a simple state machine that calls tools
-def run_support_agent(user_message: str, tools: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+def run_support_agent(
+    user_message: str, tools: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
     """Run a simple support agent that handles refund requests.
 
     Returns a list of turns (messages + tool calls) for recording.
@@ -89,51 +90,65 @@ def run_support_agent(user_message: str, tools: dict[str, Any] | None = None) ->
             break
 
     if order_id is None:
-        turns.append({
-            "role": "assistant",
-            "content": "I'd be happy to help with a refund. Could you provide your order ID?",
-        })
+        turns.append(
+            {
+                "role": "assistant",
+                "content": "I'd be happy to help with a refund. Could you provide your order ID?",
+            }
+        )
         return turns
 
     # Turn 1: Look up the order
     order = tools["lookup_order"](order_id)
-    turns.append({
-        "role": "assistant",
-        "content": f"Let me look up order {order_id}.",
-        "tool_calls": [{
-            "id": "tc_lookup",
-            "function": "lookup_order",
-            "arguments": {"order_id": order_id},
-            "result": order,
-        }],
-    })
+    turns.append(
+        {
+            "role": "assistant",
+            "content": f"Let me look up order {order_id}.",
+            "tool_calls": [
+                {
+                    "id": "tc_lookup",
+                    "function": "lookup_order",
+                    "arguments": {"order_id": order_id},
+                    "result": order,
+                }
+            ],
+        }
+    )
 
     if "error" in order:
-        turns.append({
-            "role": "assistant",
-            "content": f"I'm sorry, I couldn't find order {order_id}.",
-        })
+        turns.append(
+            {
+                "role": "assistant",
+                "content": f"I'm sorry, I couldn't find order {order_id}.",
+            }
+        )
         return turns
 
     # Turn 2: Check eligibility
     eligibility = tools["check_refund_eligibility"](order_id)
-    turns.append({
-        "role": "assistant",
-        "content": "Checking refund eligibility...",
-        "tool_calls": [{
-            "id": "tc_eligibility",
-            "function": "check_refund_eligibility",
-            "arguments": {"order_id": order_id},
-            "result": eligibility,
-        }],
-    })
+    turns.append(
+        {
+            "role": "assistant",
+            "content": "Checking refund eligibility...",
+            "tool_calls": [
+                {
+                    "id": "tc_eligibility",
+                    "function": "check_refund_eligibility",
+                    "arguments": {"order_id": order_id},
+                    "result": eligibility,
+                }
+            ],
+        }
+    )
 
     if not eligibility.get("eligible"):
         reason = eligibility.get("reason", "Unknown reason")
-        turns.append({
-            "role": "assistant",
-            "content": f"I'm sorry, this order isn't eligible for a refund. Reason: {reason}",
-        })
+        turns.append(
+            {
+                "role": "assistant",
+                "content": f"I'm sorry, this order isn't eligible for a refund. Reason: {reason}",
+            }
+        )
         return turns
 
     # Turn 3: User confirms
@@ -142,15 +157,21 @@ def run_support_agent(user_message: str, tools: dict[str, Any] | None = None) ->
     # Turn 4: Process refund
     amount = eligibility["amount"]
     refund = tools["process_refund"](order_id, amount)
-    turns.append({
-        "role": "assistant",
-        "content": f"Your refund of ${amount:.2f} has been processed. Refund ID: {refund['refund_id']}",
-        "tool_calls": [{
-            "id": "tc_refund",
-            "function": "process_refund",
-            "arguments": {"order_id": order_id, "amount": amount, "method": "original"},
-            "result": refund,
-        }],
-    })
+    turns.append(
+        {
+            "role": "assistant",
+            "content": (
+                f"Your refund of ${amount:.2f} has been processed. Refund ID: {refund['refund_id']}"
+            ),
+            "tool_calls": [
+                {
+                    "id": "tc_refund",
+                    "function": "process_refund",
+                    "arguments": {"order_id": order_id, "amount": amount, "method": "original"},
+                    "result": refund,
+                }
+            ],
+        }
+    )
 
     return turns
