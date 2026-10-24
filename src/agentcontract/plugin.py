@@ -135,7 +135,6 @@ def ac_replay_engine(
 
     if not cassette_path.exists():
         pytest.skip(f"No cassette found at {cassette_path}")
-        return None
 
     try:
         run = load_run(cassette_path)
